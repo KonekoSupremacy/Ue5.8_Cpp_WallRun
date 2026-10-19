@@ -1,24 +1,19 @@
 // No Copyright!
 
 // Game Includes
-#include "WallRunCharacter.h"
+#include "PlayerCharacter.h"
 #include "WallRun.h"
-#include "WallRunSystem/WallRunComponent.h"
 
 // Engine Includes
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputActionValue.h"
 
-DEFINE_LOG_CATEGORY(LogTemplateCharacter);
-
-AWallRunCharacter::AWallRunCharacter() {
+APlayerCharacter::APlayerCharacter() {
 	PrimaryActorTick.bCanEverTick = true;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -50,46 +45,36 @@ AWallRunCharacter::AWallRunCharacter() {
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>("FollowCamera");
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
-
-	WallRunComponent = CreateDefaultSubobject<UWallRunComponent>("WallRunComponent");
 }
 
-void AWallRunCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
+void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AWallRunCharacter::DoJump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &APlayerCharacter::DoJump);
 
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AWallRunCharacter::Move);
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AWallRunCharacter::Look);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerCharacter::Move);
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APlayerCharacter::Look);
 	}
 	else {
 		UE_LOG(LogWallRun, Error, TEXT("'%s' Failed to find an Enhanced Input component!"), *GetNameSafe(this));
 	}
 }
 
-bool AWallRunCharacter::CanMove() const {
-	if (WallRunComponent && WallRunComponent->IsWallRunning()) {
-		return false;
-	}
+bool APlayerCharacter::CanMove() const {
 	return true;
 }
 
-void AWallRunCharacter::DoLook(const float Yaw, const float Pitch) {
+void APlayerCharacter::DoLook(const float Yaw, const float Pitch) {
 	if (GetController() != nullptr) {
 		AddControllerYawInput(Yaw);
 		AddControllerPitchInput(Pitch);
 	}
 }
 
-void AWallRunCharacter::DoJump() {
-	if (WallRunComponent && WallRunComponent->IsWallRunning()) {
-		WallRunComponent->StartWallJump();
-		return;
-	}
-
+void APlayerCharacter::DoJump() {
 	Jump();
 }
 
-void AWallRunCharacter::Move(const FInputActionValue& Value) {
+void APlayerCharacter::Move(const FInputActionValue& Value) {
 	if (!CanMove()) {
 		return;
 	}
@@ -106,7 +91,8 @@ void AWallRunCharacter::Move(const FInputActionValue& Value) {
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
 }
-void AWallRunCharacter::Look(const FInputActionValue& Value) {
+
+void APlayerCharacter::Look(const FInputActionValue& Value) {
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }

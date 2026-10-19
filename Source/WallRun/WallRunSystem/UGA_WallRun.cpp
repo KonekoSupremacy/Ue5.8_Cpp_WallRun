@@ -2,12 +2,14 @@
 
 // Game Includes
 #include "UGA_WallRun.h"
+#include "PlayerCharacter.h"
 #include "WallRunGameplayTags.h"
 #include "WallRunUtilityLibrary.h"
 
 // Engine Includes
 #include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "EnhancedInputComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -16,7 +18,6 @@
 UGA_WallRun::UGA_WallRun() {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-	WallRunningTag = WallRunGameplayTags::Status_WallRunning;
 	WallJumpingTag = WallRunGameplayTags::Status_WallJumping;
 	TagsBlockingWallRun.AddTag(WallRunGameplayTags::Status_BlockingAction_WallRun);
 }
@@ -40,6 +41,17 @@ void UGA_WallRun::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 			State.PreviousVelocity = CharacterAvatar->GetVelocity();
 		}
 	}
+
+	if (!bJumpInputBound) {
+		if (const APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CharacterAvatar)) {
+			if (const UInputAction* JumpAction = PlayerCharacter->GetJumpAction()) {
+				if (UEnhancedInputComponent* InputComponent = Cast<UEnhancedInputComponent>(CharacterAvatar->InputComponent)) {
+					InputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &UGA_WallRun::OnJumpInputPressed);
+					bJumpInputBound = true;
+				}
+			}
+		}
+	}
 }
 void UGA_WallRun::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) {
@@ -60,6 +72,10 @@ void UGA_WallRun::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 
 	if (State.bIsWallRunning) {
 		StopWallRun(MOVE_Falling, 0.0f);
+	}
+
+	if (State.bIsWallJumping) {
+		StopWallJump();
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -87,11 +103,8 @@ bool UGA_WallRun::StartWallRun(const EWallRunSide Side) {
 	UWallRunUtilityLibrary::ApplyWallRunMovementSettings(CharacterAvatar, Settings, State);
 	SetTickStatus(true);
 
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		ASC->AddLooseGameplayTag(WallRunningTag);
-		ASC->AddLooseGameplayTag((Side == EWallRunSide::Left) ? WallRunGameplayTags::Status_WallRunning_Left : 
-			WallRunGameplayTags::Status_WallRunning_Right);
-	}
+	ToggleNativeTag((Side == EWallRunSide::Left) ? WallRunGameplayTags::Status_WallRunning_Left : 
+		WallRunGameplayTags::Status_WallRunning_Right);
 
 	if (Settings.WallRunDurationLimit > 0.0f) {
 		GetWorld()->GetTimerManager().SetTimer(WallRunDurationTimerHandle, this, &UGA_WallRun::WallRunTimeout, 
@@ -109,11 +122,8 @@ void UGA_WallRun::StopWallRun(const EMovementMode NewMovementMode, const float D
 
 	State.bIsWallRunning = false;
 
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		ASC->RemoveLooseGameplayTag(WallRunningTag);
-		ASC->RemoveLooseGameplayTag(WallRunGameplayTags::Status_WallRunning_Left);
-		ASC->RemoveLooseGameplayTag(WallRunGameplayTags::Status_WallRunning_Right);
-	}
+	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Left, true);
+	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Right, true);
 
 	if (const UWorld* World = GetWorld()) {
 		World->GetTimerManager().ClearTimer(WallRunDurationTimerHandle);
@@ -149,9 +159,7 @@ bool UGA_WallRun::StartWallJump() {
 	UWallRunUtilityLibrary::ApplyWallJumpMovementSettings(CharacterAvatar, Settings, State);
 	CharacterAvatar->LaunchCharacter(LaunchVel, true, true);
 
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		ASC->AddLooseGameplayTag(WallJumpingTag);
-	}
+	ToggleNativeTag(WallJumpingTag);
 
 	if (const UWorld* World = GetWorld()) {
 		World->GetTimerManager().SetTimer(AirControlTimerHandle, this, &UGA_WallRun::EnableDelayedAirControl, 
@@ -169,15 +177,19 @@ void UGA_WallRun::StopWallJump() {
 	State.bIsRotatingForWallJump = false;
 	State.CurrentWallJumpTimeForRotation = 0.0f;
 
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		ASC->RemoveLooseGameplayTag(WallJumpingTag);
-	}
+	ToggleNativeTag(WallJumpingTag, true);
 
 	if (const UWorld* World = GetWorld()) {
 		World->GetTimerManager().ClearTimer(AirControlTimerHandle);
 	}
 
 	UWallRunUtilityLibrary::RestoreWallJumpMovementSettings(CharacterAvatar, State);
+}
+
+void UGA_WallRun::OnJumpInputPressed() {
+	if (IsWallRunning()) {
+		StartWallJump();
+	}
 }
 
 void UGA_WallRun::OnCharacterMovementModeChanged(ACharacter* Character, EMovementMode PrevMovementMode, uint8 PreviousCustomMode) {
@@ -234,28 +246,21 @@ void UGA_WallRun::OnCharacterHit(AActor* SelfActor, AActor* OtherActor, FVector 
 }
 
 void UGA_WallRun::SetTickStatus(const bool bShouldTick) {
-	if (!GetWorld()) {
+	bTickEnabled = bShouldTick;
+}
+void UGA_WallRun::ToggleNativeTag(const FGameplayTag& Tag, const bool bRemove) const {
+	if (!Tag.IsValid()) {
 		return;
 	}
 
-	if (bShouldTick) {
-		if (!TickTimerHandle.IsValid()) {
-			FTimerManagerTimerParameters Params;
-			Params.bMaxOncePerFrame = true;
-			Params.bLoop = true;
-			GetWorld()->GetTimerManager().SetTimer(TickTimerHandle, this, &UGA_WallRun::EventTick, 0.001f, Params);
-		}
-	}
-	else {
-		GetWorld()->GetTimerManager().ClearTimer(TickTimerHandle);
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
+		ASC->SetLooseGameplayTagCount(Tag, bRemove ? 0 : 1);
 	}
 }
-void UGA_WallRun::EventTick() {
-	if (!CharacterAvatar || !GetWorld()) {
+void UGA_WallRun::TickAbility(const float DeltaTime) {
+	if (!bTickEnabled || !CharacterAvatar || !GetWorld()) {
 		return;
 	}
-
-	const float DeltaTime = GetWorld()->GetDeltaSeconds();
 
 	if (State.bIsWallRunning) {
 		if (Settings.WallRunDurationLimit > 0.0f && State.CurrentWallRunDuration >= Settings.WallRunDurationLimit) {

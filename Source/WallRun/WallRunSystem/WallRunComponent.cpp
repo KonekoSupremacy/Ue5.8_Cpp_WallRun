@@ -99,7 +99,6 @@ void UWallRunComponent::StopWallRun(const EMovementMode NewMovementMode, const f
 
 	State.bIsWallRunning = false;
 
-	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning, true);
 	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Left, true);
 	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Right, true);
 
@@ -395,12 +394,7 @@ void UWallRunComponent::ToggleNativeTag(const FGameplayTag& Tag, const bool bRem
 	}
 
 	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(CharacterOwner)) {
-		if (bRemove) {
-			ASC->RemoveLooseGameplayTag(Tag);
-		}
-		else {
-			ASC->AddLooseGameplayTag(Tag);
-		}
+		ASC->SetLooseGameplayTagCount(Tag, bRemove ? 0 : 1);
 	}
 }
 

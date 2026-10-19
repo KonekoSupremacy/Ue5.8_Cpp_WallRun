@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "TickableAbility.h"
 #include "WallRunTypes.h"
 #include "UGA_WallRun.generated.h"
 
@@ -11,7 +12,7 @@
 class ACharacter;
 
 UCLASS()
-class WALLRUN_API UGA_WallRun : public UGameplayAbility {
+class WALLRUN_API UGA_WallRun : public UGameplayAbility, public ITickableAbility {
 	GENERATED_BODY()
 
 public:
@@ -24,6 +25,8 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, 
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+	virtual void TickAbility(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Wall Run")
 	bool StartWallRun(EWallRunSide Side);
@@ -59,9 +62,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run")
 	FWallRunState State;
 
-	/** Tags add to char while wall running */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Wall Run|GAS")
-	FGameplayTag WallRunningTag;
 	/** Tags add to char while wall jumping */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Wall Run|GAS")
 	FGameplayTag WallJumpingTag;
@@ -79,8 +79,10 @@ protected:
 	UFUNCTION()
 	void OnCharacterHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
 
+	void OnJumpInputPressed();
+
 	void SetTickStatus(bool bShouldTick);
-	void EventTick();
+	void ToggleNativeTag(const FGameplayTag& Tag, bool bRemove = false) const;
 	void WallJumpTick(float DeltaTime);
 	void WallRunTimeout();
 	void EnableDelayedAirControl() const;
@@ -93,11 +95,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Wall Run")
 	TObjectPtr<ACharacter> CharacterAvatar = nullptr;
 
-	FTimerHandle TickTimerHandle;
 	FTimerHandle WallRunDurationTimerHandle;
 	FTimerHandle SpeedMonitorTimerHandle;
 	FTimerHandle AirControlTimerHandle;
 	FTimerHandle LockoutTimerHandle;
 
 	bool bSpeedTooLow = false;
+	bool bTickEnabled = false;
+	bool bJumpInputBound = false;
 };

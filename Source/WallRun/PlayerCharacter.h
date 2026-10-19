@@ -5,31 +5,28 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
-#include "WallRunCharacter.generated.h"
+#include "PlayerCharacter.generated.h"
 
 // Forward Declarations
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
-class UWallRunComponent;
 struct FInputActionValue;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
-
 UCLASS(abstract)
-class WALLRUN_API AWallRunCharacter : public ACharacter {
+class WALLRUN_API APlayerCharacter : public ACharacter {
 	GENERATED_BODY()
 
 public:
 	//================================================================================================================
 	// FUNCTIONS
 	//================================================================================================================
-	AWallRunCharacter();
+	APlayerCharacter();
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	virtual bool CanMove() const;
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoLook(float Yaw, float Pitch);
 
@@ -38,7 +35,7 @@ public:
 
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE UWallRunComponent* GetWallRunComponent() const { return WallRunComponent; }
+	FORCEINLINE UInputAction* GetJumpAction() const { return JumpAction; }
 
 	//================================================================================================================
 	// PROPERTIES & VARIABLES
@@ -47,9 +44,6 @@ public:
 	TObjectPtr<USpringArmComponent> CameraBoom;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UWallRunComponent> WallRunComponent;
 
 protected:
 	//================================================================================================================
