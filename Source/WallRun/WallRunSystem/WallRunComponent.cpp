@@ -109,7 +109,7 @@ bool UWallRunComponent::StartWallJump() {
 	return true;
 }
 void UWallRunComponent::StopWallJump() {
-	if (!UWallRunUtilityLibrary::EndWallJump(CharacterOwner, Settings, State,WallRunGameplayTags::Status_WallJumping)) {
+	if (!UWallRunUtilityLibrary::EndWallJump(CharacterOwner, State,WallRunGameplayTags::Status_WallJumping)) {
 		return;
 	}
 

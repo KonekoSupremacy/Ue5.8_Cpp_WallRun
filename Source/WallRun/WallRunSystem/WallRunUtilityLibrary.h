@@ -64,8 +64,7 @@ public:
 
 	static bool BeginWallJump(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
 		const FGameplayTag& JumpingTag, FVector& OutLaunchVelocity, const TFunction<void()>& OnWallRunStopped);
-	static bool EndWallJump(const ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
-		const FGameplayTag& JumpingTag);
+	static bool EndWallJump(const ACharacter* Character, FWallRunState& InOutState, const FGameplayTag& JumpingTag);
 
 	static EWallRunStopReason TickActiveWallRun(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
 		float DeltaTime);

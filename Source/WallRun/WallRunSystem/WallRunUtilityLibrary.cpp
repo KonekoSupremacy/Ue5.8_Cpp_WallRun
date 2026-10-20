@@ -70,10 +70,18 @@ bool UWallRunUtilityLibrary::DetectWall(ACharacter* Character, EWallRunSide Side
 	const FVector CamForward = FRotationMatrix(CameraRotation).GetScaledAxis(EAxis::X);
 	const FVector CamRight = FRotationMatrix(CameraRotation).GetScaledAxis(EAxis::Y);
 
-	const FVector Start = ActorLoc + (CamForward * CapsuleRadius * 0.5f);
-	const float PrimarySideMultiplier = (Side == EWallRunSide::Right) ? 1.0f : -1.0f;
-	const FVector PrimaryDir = CamRight * PrimarySideMultiplier;
-	const FVector End = Start + (PrimaryDir * CapsuleRadius * 2.0f);
+	FVector Start;
+	FVector End;
+	if (InOutState.bIsWallRunning) {
+		Start = ActorLoc;
+		End = ActorLoc - (InOutState.AverageWallNormal * CapsuleRadius * 2.0f);
+	}
+	else {
+		Start = ActorLoc + (CamForward * CapsuleRadius * 0.5f);
+		const float PrimarySideMultiplier = (Side == EWallRunSide::Right) ? 1.0f : -1.0f;
+		const FVector PrimaryDir = CamRight * PrimarySideMultiplier;
+		End = Start + (PrimaryDir * CapsuleRadius * 2.0f);
+	}
 
 	FHitResult PrimaryHit;
 	FCollisionQueryParams Params;
@@ -591,8 +599,7 @@ bool UWallRunUtilityLibrary::BeginWallJump(ACharacter* Character, const FWallRun
 	SetWallRunTagCount(Character, JumpingTag, false);
 	return true;
 }
-bool UWallRunUtilityLibrary::EndWallJump(const ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
-	const FGameplayTag& JumpingTag) {
+bool UWallRunUtilityLibrary::EndWallJump(const ACharacter* Character, FWallRunState& InOutState, const FGameplayTag& JumpingTag) {
 	if (!InOutState.bIsWallJumping) {
 		return false;
 	}
