@@ -1,4 +1,4 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 #pragma once
 
@@ -8,7 +8,6 @@
 #include "WallRunComponent.generated.h"
 
 // Forward Declarations
-struct FGameplayTag;
 class ACharacter;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWallRunStartedSignature, EWallRunSide, Side);
@@ -88,13 +87,10 @@ protected:
 
 	void SetTickStatus(bool bShouldTick);
 	void EventTick(float DeltaTime);
-	void WallJumpTick(float DeltaTime);
 	void WallRunTimeout();
 	void EnableDelayedAirControl() const;
 	void MonitorSpeed();
 	void ResetWallRunLockout();
-
-	void ToggleNativeTag(const FGameplayTag& Tag, const bool bRemove = false) const;
 
 	//================================================================================================================
 	// PROPERTIES & VARIABLES
@@ -106,6 +102,4 @@ protected:
 	FTimerHandle SpeedMonitorTimerHandle;
 	FTimerHandle AirControlTimerHandle;
 	FTimerHandle LockoutTimerHandle;
-
-	bool bSpeedTooLow = false;
 };

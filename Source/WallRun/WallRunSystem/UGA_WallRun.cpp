@@ -1,4 +1,4 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 // Game Includes
 #include "UGA_WallRun.h"
@@ -7,12 +7,9 @@
 #include "WallRunUtilityLibrary.h"
 
 // Engine Includes
-#include "AbilitySystemComponent.h"
-#include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
 
 UGA_WallRun::UGA_WallRun() {
@@ -35,12 +32,13 @@ void UGA_WallRun::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	CharacterAvatar->MovementModeChangedDelegate.AddDynamic(this, &UGA_WallRun::OnCharacterMovementModeChanged);
 	CharacterAvatar->OnActorHit.AddDynamic(this, &UGA_WallRun::OnCharacterHit);
 
-	if (const UCharacterMovementComponent* CMC = CharacterAvatar->GetCharacterMovement()) {
-		if (CMC->MovementMode == MOVE_Falling) {
-			SetTickStatus(true);
-			State.PreviousVelocity = CharacterAvatar->GetVelocity();
-		}
-	}
+	UWallRunUtilityLibrary::HandleMovementModeChanged(CharacterAvatar, State,
+		[this](const bool bShouldTick) {
+			SetTickStatus(bShouldTick);
+		},
+		[this]() {
+			StopWallJump();
+		});
 
 	if (!bJumpInputBound) {
 		if (const APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(CharacterAvatar)) {
@@ -62,10 +60,10 @@ void UGA_WallRun::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 
 	SetTickStatus(false);
 
-	if (const UWorld* World = GetWorld()) {
+	if (UWorld* World = GetWorld()) {
+		UWallRunUtilityLibrary::ClearWallRunTimers(World, WallRunDurationTimerHandle, SpeedMonitorTimerHandle);
+
 		auto& TimerManager = World->GetTimerManager();
-		TimerManager.ClearTimer(WallRunDurationTimerHandle);
-		TimerManager.ClearTimer(SpeedMonitorTimerHandle);
 		TimerManager.ClearTimer(AirControlTimerHandle);
 		TimerManager.ClearTimer(LockoutTimerHandle);
 	}
@@ -82,37 +80,17 @@ void UGA_WallRun::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
 }
 
 bool UGA_WallRun::StartWallRun(const EWallRunSide Side) {
-	if (!State.bWallRunningAllowed || !CharacterAvatar || State.bIsWallRunning) {
+	if (!UWallRunUtilityLibrary::CanStartWallRun(CharacterAvatar, State, GetAbilitySystemComponentFromActorInfo(),
+			&TagsBlockingWallRun)) {
 		return false;
 	}
 
-	if (const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		if (ASC->HasAnyMatchingGameplayTags(TagsBlockingWallRun)) {
-			return false;
-		}
-	}
-
-	if (!CharacterAvatar->GetCharacterMovement() || CharacterAvatar->GetCharacterMovement()->MovementMode != MOVE_Falling) {
-		return false;
-	}
-
-	State.bIsWallRunning = true;
-	State.WallSide = Side;
-	State.CurrentWallRunDuration = 0.0f;
-
-	UWallRunUtilityLibrary::ApplyWallRunMovementSettings(CharacterAvatar, Settings, State);
+	UWallRunUtilityLibrary::BeginWallRun(CharacterAvatar, Settings, State, Side);
 	SetTickStatus(true);
 
-	ToggleNativeTag((Side == EWallRunSide::Left) ? WallRunGameplayTags::Status_WallRunning_Left : 
-		WallRunGameplayTags::Status_WallRunning_Right);
-
-	if (Settings.WallRunDurationLimit > 0.0f) {
-		GetWorld()->GetTimerManager().SetTimer(WallRunDurationTimerHandle, this, &UGA_WallRun::WallRunTimeout, 
-			Settings.WallRunDurationLimit, false);
-	}
-
-	bSpeedTooLow = false;
-	GetWorld()->GetTimerManager().SetTimer(SpeedMonitorTimerHandle, this, &UGA_WallRun::MonitorSpeed, 0.25f, true);
+	UWallRunUtilityLibrary::StartWallRunTimers(GetWorld(), Settings, WallRunDurationTimerHandle, SpeedMonitorTimerHandle,
+		FTimerDelegate::CreateUObject(this, &UGA_WallRun::WallRunTimeout),
+		FTimerDelegate::CreateUObject(this, &UGA_WallRun::MonitorSpeed));
 	return true;
 }
 void UGA_WallRun::StopWallRun(const EMovementMode NewMovementMode, const float DisableDuration) {
@@ -120,46 +98,25 @@ void UGA_WallRun::StopWallRun(const EMovementMode NewMovementMode, const float D
 		return;
 	}
 
-	State.bIsWallRunning = false;
-
-	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Left, true);
-	ToggleNativeTag(WallRunGameplayTags::Status_WallRunning_Right, true);
-
-	if (const UWorld* World = GetWorld()) {
-		World->GetTimerManager().ClearTimer(WallRunDurationTimerHandle);
-		World->GetTimerManager().ClearTimer(SpeedMonitorTimerHandle);
-	}
-
-	UWallRunUtilityLibrary::RestoreMovementSettings(CharacterAvatar, State, NewMovementMode);
-	SetTickStatus(true);
+	UWallRunUtilityLibrary::EndWallRun(CharacterAvatar, State, NewMovementMode, DisableDuration);
+	UWallRunUtilityLibrary::ClearWallRunTimers(GetWorld(), WallRunDurationTimerHandle, SpeedMonitorTimerHandle);
 
 	if (DisableDuration > 0.0f) {
-		State.bWallRunningAllowed = false;
 		GetWorld()->GetTimerManager().SetTimer(LockoutTimerHandle, this, &UGA_WallRun::ResetWallRunLockout, 
 			DisableDuration, false);
 	}
+
+	SetTickStatus(true);
 }
 
 bool UGA_WallRun::StartWallJump() {
-	if (!State.bIsWallRunning || !CharacterAvatar) {
+	FVector LaunchVelocity;
+	if (!UWallRunUtilityLibrary::BeginWallJump(CharacterAvatar, Settings, State, WallJumpingTag, LaunchVelocity,
+			[this]() {
+				StopWallRun(MOVE_Falling, 0.35f);
+			})) {
 		return false;
 	}
-
-	FVector LaunchVel;
-	FRotator TargetRot;
-	UWallRunUtilityLibrary::CalculateWallJumpVelocity(Settings, State, LaunchVel, TargetRot);
-
-	State.bIsWallJumping = true;
-	State.TargetWallJumpRotation = TargetRot;
-	State.bIsRotatingForWallJump = true;
-	State.CurrentWallJumpTimeForRotation = 0.0f;
-
-	StopWallRun(MOVE_Falling, 0.35f);
-
-	UWallRunUtilityLibrary::ApplyWallJumpMovementSettings(CharacterAvatar, Settings, State);
-	CharacterAvatar->LaunchCharacter(LaunchVel, true, true);
-
-	ToggleNativeTag(WallJumpingTag);
 
 	if (const UWorld* World = GetWorld()) {
 		World->GetTimerManager().SetTimer(AirControlTimerHandle, this, &UGA_WallRun::EnableDelayedAirControl, 
@@ -169,21 +126,13 @@ bool UGA_WallRun::StartWallJump() {
 	return true;
 }
 void UGA_WallRun::StopWallJump() {
-	if (!State.bIsWallJumping) {
+	if (!UWallRunUtilityLibrary::EndWallJump(CharacterAvatar, Settings, State, WallJumpingTag)) {
 		return;
 	}
-
-	State.bIsWallJumping = false;
-	State.bIsRotatingForWallJump = false;
-	State.CurrentWallJumpTimeForRotation = 0.0f;
-
-	ToggleNativeTag(WallJumpingTag, true);
 
 	if (const UWorld* World = GetWorld()) {
 		World->GetTimerManager().ClearTimer(AirControlTimerHandle);
 	}
-
-	UWallRunUtilityLibrary::RestoreWallJumpMovementSettings(CharacterAvatar, State);
 }
 
 void UGA_WallRun::OnJumpInputPressed() {
@@ -193,69 +142,27 @@ void UGA_WallRun::OnJumpInputPressed() {
 }
 
 void UGA_WallRun::OnCharacterMovementModeChanged(ACharacter* Character, EMovementMode PrevMovementMode, uint8 PreviousCustomMode) {
-	if (!CharacterAvatar || !CharacterAvatar->GetCharacterMovement()) {
-		return;
-	}
-
-	switch (CharacterAvatar->GetCharacterMovement()->MovementMode) {
-	case MOVE_Falling: {
-		SetTickStatus(true);
-		State.PreviousVelocity = CharacterAvatar->GetVelocity();
-		break;
-	}
-	case MOVE_Flying: {
-		if (!State.bIsWallRunning) {
-			SetTickStatus(false);
-			if (State.bIsWallJumping) {
-				StopWallJump();
-			}
-		}
-		break;
-	}
-	default: {
-		if (State.bIsWallJumping) {
+	UWallRunUtilityLibrary::HandleMovementModeChanged(CharacterAvatar, State,
+		[this](const bool bShouldTick) {
+			SetTickStatus(bShouldTick);
+		},
+		[this]() {
 			StopWallJump();
-		}
-		if (FMath::Abs(State.CurrentMeshOffset) <= 0.01f) {
-			SetTickStatus(false);
-		}
-		break;
-	}
-	}
+		});
 }
 
 void UGA_WallRun::OnCharacterHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit) {
-	if (!CharacterAvatar || !CharacterAvatar->GetCharacterMovement()) {
-		return;
-	}
-
-	if (CharacterAvatar->GetCharacterMovement()->IsWalkable(Hit)) {
-		if (State.bIsWallRunning) {
-			const float BelowFeet = CharacterAvatar->GetActorLocation().Z - CharacterAvatar->GetCapsuleComponent()->
-				GetScaledCapsuleHalfHeight_WithoutHemisphere();
-
-			if (Hit.ImpactPoint.Z <= BelowFeet) {
-				StopWallRun(MOVE_Walking, 0.0f);
-			}
-		}
-		else if (LockoutTimerHandle.IsValid()) {
-			GetWorld()->GetTimerManager().ClearTimer(LockoutTimerHandle);
+	UWallRunUtilityLibrary::HandleCharacterHit(CharacterAvatar, State, Hit, LockoutTimerHandle,
+		[this]() {
+			StopWallRun(MOVE_Walking, 0.0f);
+		},
+		[this]() {
 			ResetWallRunLockout();
-		}
-	}
+		});
 }
 
 void UGA_WallRun::SetTickStatus(const bool bShouldTick) {
 	bTickEnabled = bShouldTick;
-}
-void UGA_WallRun::ToggleNativeTag(const FGameplayTag& Tag, const bool bRemove) const {
-	if (!Tag.IsValid()) {
-		return;
-	}
-
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo()) {
-		ASC->SetLooseGameplayTagCount(Tag, bRemove ? 0 : 1);
-	}
 }
 void UGA_WallRun::TickAbility(const float DeltaTime) {
 	if (!bTickEnabled || !CharacterAvatar || !GetWorld()) {
@@ -263,156 +170,31 @@ void UGA_WallRun::TickAbility(const float DeltaTime) {
 	}
 
 	if (State.bIsWallRunning) {
-		if (Settings.WallRunDurationLimit > 0.0f && State.CurrentWallRunDuration >= Settings.WallRunDurationLimit) {
-			StopWallRun(MOVE_Falling, 0.5f);
-			return;
+		const EWallRunStopReason StopReason = UWallRunUtilityLibrary::TickActiveWallRun(CharacterAvatar, Settings, State, DeltaTime);
+		if (StopReason != EWallRunStopReason::None) {
+			StopWallRun(MOVE_Falling, UWallRunUtilityLibrary::WallRunStopLockoutDuration(StopReason));
 		}
-
-		if (!UWallRunUtilityLibrary::DetectWall(CharacterAvatar, State.WallSide, Settings, State)) {
-			StopWallRun(MOVE_Falling, 0.35f);
-			return;
-		}
-
-		FHitResult WallCheckHit;
-		const FVector WallTraceStart = CharacterAvatar->GetActorLocation();
-		const FVector WallTraceEnd = WallTraceStart + (State.AverageWallNormal * -200.0f);
-		FCollisionQueryParams WallCheckParams;
-		WallCheckParams.AddIgnoredActor(CharacterAvatar);
-
-		const bool bWallStillValid = GetWorld()->LineTraceSingleByChannel(WallCheckHit, WallTraceStart, WallTraceEnd, Settings
-			.TraceChannel, WallCheckParams);
-
-		if (!bWallStillValid) {
-			StopWallRun(MOVE_Falling, 0.35f);
-			return;
-		}
-
-		FVector WorldDir;
-		FRotator TargetRot;
-		UWallRunUtilityLibrary::UpdateWallRunMovement(CharacterAvatar, Settings, State, DeltaTime, WorldDir, TargetRot);
-
-		State.PreviousVelocity = CharacterAvatar->GetVelocity();
 		return;
 	}
 
-	auto* CMC = CharacterAvatar->GetCharacterMovement();
-	if (FMath::Abs(State.CurrentMeshOffset) > 0.01f) {
-		UWallRunUtilityLibrary::ResetMeshWallOffset(CharacterAvatar, State, DeltaTime);
+	UWallRunUtilityLibrary::TickWallJumpIdle(CharacterAvatar, Settings, State, DeltaTime,
+		[this](const bool bShouldTick) {
+			SetTickStatus(bShouldTick);
+		});
 
-		if (FMath::Abs(State.CurrentMeshOffset) <= 0.01f && !State.bIsWallJumping && CMC->MovementMode != MOVE_Falling) {
-			SetTickStatus(false);
-		}
-	}
-
-	WallJumpTick(DeltaTime);
-
-	if (!State.bWallRunningAllowed || CMC->MovementMode != MOVE_Falling) {
-		return;
-	}
-
-	const float HorizontalSpeed = CharacterAvatar->GetVelocity().Size2D();
-	const bool bHasMovementInput = !CharacterAvatar->GetLastMovementInputVector().IsNearlyZero() ||
-		!CMC->GetCurrentAcceleration().IsNearlyZero();
-	if (HorizontalSpeed < Settings.MinStartSpeed && !bHasMovementInput) {
-		return;
-	}
-
-	const float CapsuleRadius = CharacterAvatar->GetCapsuleComponent()->GetScaledCapsuleRadius();
-	const FVector TraceStart = CharacterAvatar->GetActorLocation() + (CharacterAvatar->GetActorForwardVector() * CapsuleRadius * 0.5f);
-
-	FRotator CameraRotation = CharacterAvatar->GetActorRotation();
-	if (const AController* Controller = CharacterAvatar->GetController()) {
-		CameraRotation = Controller->GetControlRotation();
-	}
-
-	const FVector CameraForward = CameraRotation.Vector();
-	const FVector TraceEnd = TraceStart + (CameraForward * CapsuleRadius * 2.0f);
-
-	FHitResult FrontHit;
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(CharacterAvatar);
-
-	if (GetWorld()->SweepSingleByChannel(FrontHit, TraceStart, TraceEnd, FQuat::Identity, Settings.TraceChannel, 
-		FCollisionShape::MakeSphere(CapsuleRadius * Settings.PrimaryTraceRadiusMultiplier), QueryParams)) {
-		if (UWallRunUtilityLibrary::IsWallRunnable(FrontHit.GetActor(), Settings)) {
-			const EWallRunSide Side = UWallRunUtilityLibrary::DetermineWallSideFromCamera(CharacterAvatar, FrontHit.ImpactNormal);
-			if (UWallRunUtilityLibrary::DetectWall(CharacterAvatar, Side, Settings, State)) {
-				float FrontCornerAngle = 0.0f;
-				if (UWallRunUtilityLibrary::CheckCornerAngle(FrontHit.ImpactNormal, State.PrimaryTraceNormal, 
-					Side, Settings, FrontCornerAngle)) {
-					const EWallRunSide FinalSide = State.WallSide;
-					if (UWallRunUtilityLibrary::CheckBottomArea(CharacterAvatar, Settings, State) &&
-						UWallRunUtilityLibrary::CheckTopArea(CharacterAvatar, Settings, State)) {
-						StartWallRun(FinalSide);
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	if (UWallRunUtilityLibrary::DetectWall(CharacterAvatar, EWallRunSide::Right, Settings, State)) {
-		const EWallRunSide FinalSide = State.WallSide;
-		if (UWallRunUtilityLibrary::CheckBottomArea(CharacterAvatar, Settings, State) &&
-			UWallRunUtilityLibrary::CheckTopArea(CharacterAvatar, Settings, State)) {
-			StartWallRun(FinalSide);
-			return;
-		}
-	}
-
-	if (UWallRunUtilityLibrary::DetectWall(CharacterAvatar, EWallRunSide::Left, Settings, State)) {
-		const EWallRunSide FinalSide = State.WallSide;
-		if (UWallRunUtilityLibrary::CheckBottomArea(CharacterAvatar, Settings, State) &&
-			UWallRunUtilityLibrary::CheckTopArea(CharacterAvatar, Settings, State)) {
-			StartWallRun(FinalSide);
-			return;
-		}
-	}
-}
-void UGA_WallRun::WallJumpTick(const float DeltaTime) {
-	if (!State.bIsWallJumping || !State.bIsRotatingForWallJump || !CharacterAvatar) {
-		return;
-	}
-
-	constexpr float StopRotationAfter = 0.04f;
-	if (State.CurrentWallJumpTimeForRotation <= StopRotationAfter) {
-		const FRotator InterpRot = FMath::RInterpTo(CharacterAvatar->GetActorRotation(), State.TargetWallJumpRotation, 
-			DeltaTime, 10.0f);
-		CharacterAvatar->SetActorRotation(InterpRot, ETeleportType::TeleportPhysics);
-
-		State.CurrentWallJumpTimeForRotation += DeltaTime;
-		if (State.CurrentWallJumpTimeForRotation >= StopRotationAfter) {
-			CharacterAvatar->SetActorRotation(State.TargetWallJumpRotation, ETeleportType::TeleportPhysics);
-			State.bIsRotatingForWallJump = false;
-			State.CurrentWallJumpTimeForRotation = 0.0f;
-		}
+	if (UWallRunUtilityLibrary::TryFindWallRunStart(CharacterAvatar, Settings, State, DeltaTime)) {
+		StartWallRun(State.WallSide);
 	}
 }
 void UGA_WallRun::WallRunTimeout() {
 	StopWallRun(MOVE_Falling, 0.5f);
 }
 void UGA_WallRun::EnableDelayedAirControl() const {
-	if (CharacterAvatar && CharacterAvatar->GetCharacterMovement()) {
-		CharacterAvatar->GetCharacterMovement()->AirControl = Settings.WallJumpAirControl;
-	}
+	UWallRunUtilityLibrary::SetWallJumpAirControl(CharacterAvatar, Settings);
 }
 void UGA_WallRun::MonitorSpeed() {
-	if (!CharacterAvatar || !State.bIsWallRunning) {
-		return;
-	}
-
-	const float Speed = CharacterAvatar->GetVelocity().Size2D();
-	if (Speed < 300.0f) {
-		if (bSpeedTooLow) {
-			bSpeedTooLow = false;
-			StopWallRun(MOVE_Falling, 0.5f);
-		}
-		else {
-			bSpeedTooLow = true;
-		}
-	}
-	else {
-		bSpeedTooLow = false;
+	if (UWallRunUtilityLibrary::UpdateSpeedMonitor(CharacterAvatar, State)) {
+		StopWallRun(MOVE_Falling, 0.5f);
 	}
 }
 void UGA_WallRun::ResetWallRunLockout() {

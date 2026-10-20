@@ -1,4 +1,4 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 #pragma once
 
@@ -10,6 +10,12 @@ UENUM(BlueprintType)
 enum class EWallRunSide : uint8 {
 	Right UMETA(DisplayName = "Right"),
 	Left  UMETA(DisplayName = "Left")
+};
+
+enum class EWallRunStopReason : uint8 {
+	None,
+	Timeout,
+	LostWall
 };
 
 USTRUCT(BlueprintType)
@@ -52,6 +58,14 @@ struct WALLRUN_API FWallRunSettings {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Movement")
 	float WallRunBrakingDeceleration = 500.0f;
 
+	/** Max degrees per second the character turns to align with the wall while wall running. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Movement", meta = (ClampMin = "30.0", ClampMax = "1080.0"))
+	float MaxWallRunTurnRate = 360.0f;
+
+	/** Max speed (cm/s) the capsule may be repositioned at to hug the walle */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Movement", meta = (ClampMin = "50.0", ClampMax = "2000.0"))
+	float CapsuleAdjustmentSpeed = 400.0f;
+
 	/** Vertical arc shape (0 = flat horizontal, 1 = maximum arc). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Movement", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float ArcAmount = 0.65f;
@@ -71,6 +85,10 @@ struct WALLRUN_API FWallRunSettings {
 	float WallJumpHorizontalVelocity = 800.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Wall Jump")
 	float WallJumpVerticalVelocity = 500.0f;
+
+	/** Time taken to rotate into the wall jump direction (0 = instant). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Wall Jump", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float WallJumpRotationTime = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Wall Jump")
 	float WallJumpGravity = 1.5f;
@@ -108,6 +126,8 @@ struct WALLRUN_API FWallRunState {
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
 	bool bWallRunningAllowed = true;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
+	bool bSpeedTooLow = false;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
 	EWallRunSide WallSide = EWallRunSide::Right;
@@ -135,6 +155,8 @@ struct WALLRUN_API FWallRunState {
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
 	float LastKnownSafeHeight = 0.0f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
+	bool bWallTopReached = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wall Run|State")
 	FVector PreviousVelocity = FVector::ZeroVector;

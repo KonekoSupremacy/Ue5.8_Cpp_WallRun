@@ -1,4 +1,4 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 #pragma once
 
@@ -82,8 +82,6 @@ protected:
 	void OnJumpInputPressed();
 
 	void SetTickStatus(bool bShouldTick);
-	void ToggleNativeTag(const FGameplayTag& Tag, bool bRemove = false) const;
-	void WallJumpTick(float DeltaTime);
 	void WallRunTimeout();
 	void EnableDelayedAirControl() const;
 	void MonitorSpeed();
@@ -100,7 +98,6 @@ protected:
 	FTimerHandle AirControlTimerHandle;
 	FTimerHandle LockoutTimerHandle;
 
-	bool bSpeedTooLow = false;
 	bool bTickEnabled = false;
 	bool bJumpInputBound = false;
 };

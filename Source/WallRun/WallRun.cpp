@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright: Elixir Studios
 
 #include "WallRun.h"
 #include "Modules/ModuleManager.h"

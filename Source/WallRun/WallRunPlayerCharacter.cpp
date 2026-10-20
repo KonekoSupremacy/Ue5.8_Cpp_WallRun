@@ -1,4 +1,4 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 // Game Includes
 #include "WallRunPlayerCharacter.h"

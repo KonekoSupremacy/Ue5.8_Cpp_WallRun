@@ -1,9 +1,12 @@
-// No Copyright!
+// Copyright: Elixir Studios
 
 // Game Includes
 #include "WallRunUtilityLibrary.h"
+#include "WallRunGameplayTags.h"
 
 // Engine Includes
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -11,6 +14,21 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Kismet/KismetMathLibrary.h"
+
+static void AdjustActorHeight(ACharacter* Character, const float TargetHeight, const FWallRunSettings& Settings, const float DeltaTime) {
+	const FVector Location = Character->GetActorLocation();
+	Character->SetActorLocation(FVector(Location.X, Location.Y, 
+		FMath::FInterpConstantTo(Location.Z, TargetHeight, DeltaTime, Settings.CapsuleAdjustmentSpeed)), true);
+}
+static void BlockWallRunAscent(ACharacter* Character, FWallRunState& InOutState, const FWallRunSettings& Settings, 
+	const float TargetHeight, const float DeltaTime) {
+	InOutState.bWallTopReached = true;
+	AdjustActorHeight(Character, TargetHeight, Settings, DeltaTime);
+
+	if (UCharacterMovementComponent* CMC = Character->GetCharacterMovement()) {
+		CMC->Velocity.Z = FMath::Min(CMC->Velocity.Z, 0.0f);
+	}
+}
 
 bool UWallRunUtilityLibrary::IsWallRunnable(const AActor* WallActor, const FWallRunSettings& Settings) {
 	if (!WallActor) {
@@ -167,10 +185,13 @@ bool UWallRunUtilityLibrary::CheckCornerAngle(const FVector& FirstWallNormal, co
 	return OutAngle <= AngleLimit;
 }
 
-bool UWallRunUtilityLibrary::CheckTopArea(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState) {
+bool UWallRunUtilityLibrary::CheckTopArea(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
+	const float DeltaTime) {
 	if (!Character ) {
 		return false;
 	}
+
+	InOutState.bWallTopReached = false;
 
 	const float CapsuleHalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	const float CapsuleRadius = Character->GetCapsuleComponent()->GetScaledCapsuleRadius();
@@ -197,8 +218,7 @@ bool UWallRunUtilityLibrary::CheckTopArea(ACharacter* Character, const FWallRunS
 			if (TraceStart.Z > HitResult.ImpactPoint.Z) {
 				if (InOutState.bIsWallRunning) {
 					const float DistanceAboveWall = TraceStart.Z - HitResult.ImpactPoint.Z;
-					const FVector FinalLocation(CharacterLocation.X, CharacterLocation.Y, CharacterLocation.Z - DistanceAboveWall);
-					Character->SetActorLocation(FinalLocation, true);
+					BlockWallRunAscent(Character, InOutState, Settings, CharacterLocation.Z - DistanceAboveWall, DeltaTime);
 					InOutState.LastKnownSafeHeight = CharacterLocation.Z - DistanceAboveWall;
 					return true;
 				}
@@ -211,14 +231,14 @@ bool UWallRunUtilityLibrary::CheckTopArea(ACharacter* Character, const FWallRunS
 		if (!InOutState.bIsWallRunning) {
 			return false;
 		}
-		Character->SetActorLocation(FVector(CharacterLocation.X, CharacterLocation.Y, InOutState.LastKnownSafeHeight), true);
+		AdjustActorHeight(Character, InOutState.LastKnownSafeHeight, Settings, DeltaTime);
 		return false;
 	}
 
 	if (!InOutState.bIsWallRunning) {
 		return false;
 	}
-	Character->SetActorLocation(FVector(CharacterLocation.X, CharacterLocation.Y, InOutState.LastKnownSafeHeight), true);
+	AdjustActorHeight(Character, InOutState.LastKnownSafeHeight, Settings, DeltaTime);
 	return false;
 }
 bool UWallRunUtilityLibrary::CheckBottomArea(const ACharacter* Character, const FWallRunSettings& Settings, const FWallRunState& State) {
@@ -268,13 +288,17 @@ bool UWallRunUtilityLibrary::TraceRelativeToWall(const ACharacter* Character, FH
 	return bHit;
 }
 
-void UWallRunUtilityLibrary::HugWall(ACharacter* Character, const FWallRunState& State) {
+void UWallRunUtilityLibrary::HugWall(ACharacter* Character, const FWallRunSettings& Settings, const FWallRunState& State, 
+	const float DeltaTime) {
 	if (!Character) {
 		return;
 	}
 
 	const float DistanceFromWall = FMath::Max(State.DistanceFromWall, 0.0f);
-	Character->AddActorWorldOffset(State.AverageWallNormal * -DistanceFromWall, true);
+	const float Step = FMath::Min(DistanceFromWall, Settings.CapsuleAdjustmentSpeed * DeltaTime);
+	if (Step > 0.0f) {
+		Character->AddActorWorldOffset(State.AverageWallNormal * -Step, true);
+	}
 }
 void UWallRunUtilityLibrary::UpdateMeshWallOffset(const ACharacter* Character, const FWallRunSettings& Settings, 
 	FWallRunState& InOutState, const float DeltaTime) {
@@ -330,14 +354,12 @@ void UWallRunUtilityLibrary::ResetMeshWallOffset(const ACharacter* Character, FW
 }
 
 void UWallRunUtilityLibrary::UpdateWallRunMovement(ACharacter* Character, const FWallRunSettings& Settings, 
-	FWallRunState& InOutState, const float DeltaTime, FVector& OutWorldDirection, FRotator& OutTargetRotation) {
+	FWallRunState& InOutState, const float DeltaTime) {
 	if (!Character || !Character->GetCharacterMovement()) {
-		OutWorldDirection = FVector::ZeroVector;
-		OutTargetRotation = FRotator::ZeroRotator;
 		return;
 	}
 
-	HugWall(Character, InOutState);
+	HugWall(Character, Settings, InOutState, DeltaTime);
 	UpdateMeshWallOffset(Character, Settings, InOutState, DeltaTime);
 
 	const FVector CrossProd = InOutState.AverageWallNormal.Cross(FVector(0.0f, 0.0f, 
@@ -350,7 +372,10 @@ void UWallRunUtilityLibrary::UpdateWallRunMovement(ACharacter* Character, const 
 
 	const float MappedWallRunDuration = FMath::GetMappedRangeValueClamped(FVector2D(ArcStartTime, ArcEndTime),
 		FVector2D(InitialArcMultiplier, TerminalArcMultiplier), InOutState.CurrentWallRunDuration);
-	const float FinalArcAmount = Settings.ArcAmount * MappedWallRunDuration;
+	float FinalArcAmount = Settings.ArcAmount * MappedWallRunDuration;
+	if (InOutState.bWallTopReached) {
+		FinalArcAmount = FMath::Min(FinalArcAmount, 0.0f);
+	}
 	FVector WorldDirection = FVector(CrossProd.X, CrossProd.Y, FinalArcAmount);
 	WorldDirection.Normalize();
 
@@ -364,25 +389,11 @@ void UWallRunUtilityLibrary::UpdateWallRunMovement(ACharacter* Character, const 
 
 	const FRotator CharRot = Character->GetActorRotation();
 	const FRotator TargetRotation = CrossProd.ToOrientationRotator();
-	OutTargetRotation = TargetRotation;
-	if (!CharRot.Equals(TargetRotation, 1.0f)) {
-		constexpr float MinInterpSpeed = 13.0f;
-		constexpr float MaxInterpSpeed = 25.0f;
-		const float VelocityFactor = FMath::GetMappedRangeValueClamped(
-			FVector2D(800.0f, 1600.0f),
-			FVector2D(MinInterpSpeed, MaxInterpSpeed),
-			Character->GetVelocity().Length()
-		);
-		const float DistanceFactor = 1.0f - (CharRot - TargetRotation).GetNormalized().Yaw / 180.0f;
-		const float RotationSpeed = FMath::Clamp(VelocityFactor * DistanceFactor, MinInterpSpeed, MaxInterpSpeed);
-
-		Character->SetActorRotation(FMath::RInterpTo(CharRot, TargetRotation, 
-			DeltaTime > 0.0f ? DeltaTime : 0.01f, RotationSpeed));
-	}
+	Character->SetActorRotation(FMath::RInterpConstantTo(CharRot, TargetRotation, DeltaTime, Settings.MaxWallRunTurnRate));
 
 	InOutState.CurrentWallRunDuration += DeltaTime;
 
-	CheckTopArea(Character, Settings, InOutState);
+	CheckTopArea(Character, Settings, InOutState, DeltaTime);
 	CheckBottomArea(Character, Settings, InOutState);
 	UpdateAnimationValues(Character, InOutState, DeltaTime);
 }
@@ -393,6 +404,7 @@ void UWallRunUtilityLibrary::ApplyWallRunMovementSettings(const ACharacter* Char
 	}
 
 	UCharacterMovementComponent* CMC = Character->GetCharacterMovement();
+
 	InOutState.SavedMaxFlySpeed = CMC->MaxFlySpeed;
 	InOutState.bSavedOrientRotation = CMC->bOrientRotationToMovement;
 	InOutState.SavedMaxAcceleration = CMC->MaxAcceleration;
@@ -479,6 +491,23 @@ void UWallRunUtilityLibrary::RestoreWallJumpMovementSettings(const ACharacter* C
 		CMC->BrakingDecelerationFalling = State.SavedBrakingDecelerationFalling;
 	}
 }
+void UWallRunUtilityLibrary::UpdateWallJumpRotation(ACharacter* Character, const FWallRunSettings& Settings, 
+	FWallRunState& InOutState, const float DeltaTime) {
+	if (!Character || !InOutState.bIsWallJumping || !InOutState.bIsRotatingForWallJump || DeltaTime <= 0.0f) {
+		return;
+	}
+
+	const float RotationTime = FMath::Max(Settings.WallJumpRotationTime, UE_KINDA_SMALL_NUMBER);
+	InOutState.CurrentWallJumpTimeForRotation += DeltaTime;
+
+	const float Alpha = FMath::Clamp(InOutState.CurrentWallJumpTimeForRotation / RotationTime, 0.0f, 1.0f);
+	Character->SetActorRotation(FQuat::Slerp(Character->GetActorQuat(), InOutState.TargetWallJumpRotation.Quaternion(), Alpha));
+
+	if (Alpha >= 1.0f) {
+		InOutState.bIsRotatingForWallJump = false;
+		InOutState.CurrentWallJumpTimeForRotation = 0.0f;
+	}
+}
 
 void UWallRunUtilityLibrary::UpdateAnimationValues(const ACharacter* Character, FWallRunState& InOutState, const float DeltaTime) {
 	if (!Character) {
@@ -500,4 +529,304 @@ void UWallRunUtilityLibrary::UpdateAnimationValues(const ACharacter* Character, 
 	InOutState.CurrentTurnRate = FMath::FInterpTo(InOutState.CurrentTurnRate, TurnRate, DeltaTime > 0.0f ? 
 		DeltaTime : 0.01f, 10.0f);
 	InOutState.PreviousRotation = CurrentRotation;
+}
+
+bool UWallRunUtilityLibrary::CanStartWallRun(const ACharacter* Character, const FWallRunState& State, const UAbilitySystemComponent* ASC, 
+	const FGameplayTagContainer* BlockingTags) {
+	if (!Character || !State.bWallRunningAllowed || State.bIsWallRunning) {
+		return false;
+	}
+
+	if (ASC && BlockingTags && ASC->HasAnyMatchingGameplayTags(*BlockingTags)) {
+		return false;
+	}
+
+	const UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+	return Movement && Movement->MovementMode == MOVE_Falling;
+}
+void UWallRunUtilityLibrary::BeginWallRun(const ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
+	const EWallRunSide Side) {
+	InOutState.bIsWallRunning = true;
+	InOutState.WallSide = Side;
+	InOutState.CurrentWallRunDuration = 0.0f;
+	InOutState.bSpeedTooLow = false;
+
+	ApplyWallRunMovementSettings(Character, Settings, InOutState);
+	SetWallRunTagCount(Character, (Side == EWallRunSide::Left) ? WallRunGameplayTags::Status_WallRunning_Left :
+		WallRunGameplayTags::Status_WallRunning_Right, false);
+}
+void UWallRunUtilityLibrary::EndWallRun(const ACharacter* Character, FWallRunState& InOutState, const EMovementMode NewMovementMode,
+	const float DisableDuration) {
+	InOutState.bIsWallRunning = false;
+
+	SetWallRunTagCount(Character, WallRunGameplayTags::Status_WallRunning_Left, true);
+	SetWallRunTagCount(Character, WallRunGameplayTags::Status_WallRunning_Right, true);
+
+	RestoreMovementSettings(Character, InOutState, NewMovementMode);
+
+	if (DisableDuration > 0.0f) {
+		InOutState.bWallRunningAllowed = false;
+	}
+}
+
+bool UWallRunUtilityLibrary::BeginWallJump(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
+	const FGameplayTag& JumpingTag, FVector& OutLaunchVelocity, const TFunction<void()>& OnWallRunStopped) {
+	if (!Character || !InOutState.bIsWallRunning) {
+		return false;
+	}
+
+	FRotator TargetRotation;
+	CalculateWallJumpVelocity(Settings, InOutState, OutLaunchVelocity, TargetRotation);
+
+	InOutState.bIsWallJumping = true;
+	InOutState.TargetWallJumpRotation = TargetRotation;
+	InOutState.bIsRotatingForWallJump = true;
+	InOutState.CurrentWallJumpTimeForRotation = 0.0f;
+
+	OnWallRunStopped();
+
+	ApplyWallJumpMovementSettings(Character, Settings, InOutState);
+	Character->LaunchCharacter(OutLaunchVelocity, true, true);
+
+	SetWallRunTagCount(Character, JumpingTag, false);
+	return true;
+}
+bool UWallRunUtilityLibrary::EndWallJump(const ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
+	const FGameplayTag& JumpingTag) {
+	if (!InOutState.bIsWallJumping) {
+		return false;
+	}
+
+	InOutState.bIsWallJumping = false;
+	InOutState.bIsRotatingForWallJump = false;
+	InOutState.CurrentWallJumpTimeForRotation = 0.0f;
+
+	SetWallRunTagCount(Character, JumpingTag, true);
+	RestoreWallJumpMovementSettings(Character, InOutState);
+	return true;
+}
+
+EWallRunStopReason UWallRunUtilityLibrary::TickActiveWallRun(ACharacter* Character, const FWallRunSettings& Settings,
+	FWallRunState& InOutState, const float DeltaTime) {
+	if (Settings.WallRunDurationLimit > 0.0f && InOutState.CurrentWallRunDuration >= Settings.WallRunDurationLimit) {
+		return EWallRunStopReason::Timeout;
+	}
+
+	if (!DetectWall(Character, InOutState.WallSide, Settings, InOutState)) {
+		return EWallRunStopReason::LostWall;
+	}
+
+	const FVector WallTraceStart = Character->GetActorLocation();
+	const FVector WallTraceEnd = WallTraceStart + (InOutState.AverageWallNormal * -200.0f);
+
+	FHitResult WallCheckHit;
+	FCollisionQueryParams WallCheckParams;
+	WallCheckParams.AddIgnoredActor(Character);
+
+	if (!Character->GetWorld()->LineTraceSingleByChannel(WallCheckHit, WallTraceStart, WallTraceEnd, Settings.TraceChannel,
+		WallCheckParams)) {
+		return EWallRunStopReason::LostWall;
+	}
+
+	UpdateWallRunMovement(Character, Settings, InOutState, DeltaTime);
+	InOutState.PreviousVelocity = Character->GetVelocity();
+	return EWallRunStopReason::None;
+}
+float UWallRunUtilityLibrary::WallRunStopLockoutDuration(const EWallRunStopReason Reason) {
+	switch (Reason) {
+	case EWallRunStopReason::Timeout: {
+		return 0.5f;
+	}
+	case EWallRunStopReason::LostWall: {
+		return 0.35f;
+	}
+	default: {
+		return 0.0f;
+	}
+	}
+}
+void UWallRunUtilityLibrary::TickWallJumpIdle(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
+	const float DeltaTime, const TFunction<void(bool)>& OnSetTickStatus) {
+	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!Movement) {
+		return;
+	}
+
+	if (FMath::Abs(InOutState.CurrentMeshOffset) > 0.01f) {
+		ResetMeshWallOffset(Character, InOutState, DeltaTime);
+
+		if (FMath::Abs(InOutState.CurrentMeshOffset) <= 0.01f && !InOutState.bIsWallJumping && Movement->MovementMode != MOVE_Falling) {
+			OnSetTickStatus(false);
+		}
+	}
+
+	UpdateWallJumpRotation(Character, Settings, InOutState, DeltaTime);
+}
+bool UWallRunUtilityLibrary::TryFindWallRunStart(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState,
+	const float DeltaTime) {
+	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!Movement || !InOutState.bWallRunningAllowed || Movement->MovementMode != MOVE_Falling) {
+		return false;
+	}
+
+	const float HorizontalSpeed = Character->GetVelocity().Size2D();
+	const bool bHasMovementInput = !Character->GetLastMovementInputVector().IsNearlyZero() ||
+		!Movement->GetCurrentAcceleration().IsNearlyZero();
+	if (HorizontalSpeed < Settings.MinStartSpeed && !bHasMovementInput) {
+		return false;
+	}
+
+	const float CapsuleRadius = Character->GetCapsuleComponent()->GetScaledCapsuleRadius();
+	const FVector TraceStart = Character->GetActorLocation() + (Character->GetActorForwardVector() * CapsuleRadius * 0.5f);
+
+	FRotator CameraRotation = Character->GetActorRotation();
+	if (const AController* Controller = Character->GetController()) {
+		CameraRotation = Controller->GetControlRotation();
+	}
+
+	const FVector TraceEnd = TraceStart + (CameraRotation.Vector() * CapsuleRadius * 2.0f);
+
+	FHitResult FrontHit;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(Character);
+
+	if (Character->GetWorld()->SweepSingleByChannel(FrontHit, TraceStart, TraceEnd, FQuat::Identity, Settings.TraceChannel,
+		FCollisionShape::MakeSphere(CapsuleRadius * Settings.PrimaryTraceRadiusMultiplier), QueryParams)) {
+		if (IsWallRunnable(FrontHit.GetActor(), Settings)) {
+			const EWallRunSide Side = DetermineWallSideFromCamera(Character, FrontHit.ImpactNormal);
+			if (DetectWall(Character, Side, Settings, InOutState)) {
+				float FrontCornerAngle = 0.0f;
+				if (CheckCornerAngle(FrontHit.ImpactNormal, InOutState.PrimaryTraceNormal, Side, Settings, FrontCornerAngle)) {
+					if (CheckBottomArea(Character, Settings, InOutState) &&
+						CheckTopArea(Character, Settings, InOutState, DeltaTime)) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	if (DetectWall(Character, EWallRunSide::Right, Settings, InOutState)) {
+		if (CheckBottomArea(Character, Settings, InOutState) && CheckTopArea(Character, Settings, InOutState, DeltaTime)) {
+			return true;
+		}
+	}
+
+	if (DetectWall(Character, EWallRunSide::Left, Settings, InOutState)) {
+		if (CheckBottomArea(Character, Settings, InOutState) && CheckTopArea(Character, Settings, InOutState, DeltaTime)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UWallRunUtilityLibrary::UpdateSpeedMonitor(const ACharacter* Character, FWallRunState& InOutState) {
+	if (!Character || !InOutState.bIsWallRunning) {
+		return false;
+	}
+
+	const float Speed = Character->GetVelocity().Size2D();
+	if (Speed < 300.0f) {
+		if (InOutState.bSpeedTooLow) {
+			InOutState.bSpeedTooLow = false;
+			return true;
+		}
+		InOutState.bSpeedTooLow = true;
+	}
+	else {
+		InOutState.bSpeedTooLow = false;
+	}
+
+	return false;
+}
+void UWallRunUtilityLibrary::SetWallJumpAirControl(const ACharacter* Character, const FWallRunSettings& Settings) {
+	if (Character && Character->GetCharacterMovement()) {
+		Character->GetCharacterMovement()->AirControl = Settings.WallJumpAirControl;
+	}
+}
+void UWallRunUtilityLibrary::SetWallRunTagCount(const ACharacter* Character, const FGameplayTag& Tag, const bool bRemove) {
+	if (!Character || !Tag.IsValid()) {
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Character)) {
+		ASC->SetLooseGameplayTagCount(Tag, bRemove ? 0 : 1);
+	}
+}
+
+void UWallRunUtilityLibrary::HandleMovementModeChanged(const ACharacter* Character, FWallRunState& InOutState, const 
+	TFunction<void(bool)>& OnSetTickStatus, const TFunction<void()>& OnStopWallJump) {
+	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!Movement) {
+		return;
+	}
+
+	switch (Movement->MovementMode) {
+	case MOVE_Falling: {
+		OnSetTickStatus(true);
+		InOutState.PreviousVelocity = Character->GetVelocity();
+		break;
+	}
+	case MOVE_Flying: {
+		if (!InOutState.bIsWallRunning) {
+			OnSetTickStatus(false);
+			if (InOutState.bIsWallJumping) {
+				OnStopWallJump();
+			}
+		}
+		break;
+	}
+	default: {
+		if (InOutState.bIsWallJumping) {
+			OnStopWallJump();
+		}
+		if (FMath::Abs(InOutState.CurrentMeshOffset) <= 0.01f) {
+			OnSetTickStatus(false);
+		}
+		break;
+	}
+	}
+}
+void UWallRunUtilityLibrary::HandleCharacterHit(const ACharacter* Character, const FWallRunState& InOutState, const FHitResult& Hit,
+	FTimerHandle& LockoutTimerHandle, const TFunction<void()>& OnStopWallRun, const TFunction<void()>& OnLockoutCleared) {
+	const UCharacterMovementComponent* Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	if (!Movement || !Movement->IsWalkable(Hit)) {
+		return;
+	}
+
+	if (InOutState.bIsWallRunning) {
+		const float BelowFeet = Character->GetActorLocation().Z - Character->GetCapsuleComponent()->
+			GetScaledCapsuleHalfHeight_WithoutHemisphere();
+
+		if (Hit.ImpactPoint.Z <= BelowFeet) {
+			OnStopWallRun();
+		}
+	}
+	else if (LockoutTimerHandle.IsValid()) {
+		Character->GetWorld()->GetTimerManager().ClearTimer(LockoutTimerHandle);
+		OnLockoutCleared();
+	}
+}
+
+void UWallRunUtilityLibrary::StartWallRunTimers(const UWorld* World, const FWallRunSettings& Settings, FTimerHandle& DurationHandle,
+	FTimerHandle& SpeedHandle, const FTimerDelegate& OnTimeout, const FTimerDelegate& OnSpeedCheck) {
+	if (!World) {
+		return;
+	}
+
+	FTimerManager& TimerManager = World->GetTimerManager();
+	if (Settings.WallRunDurationLimit > 0.0f) {
+		TimerManager.SetTimer(DurationHandle, OnTimeout, Settings.WallRunDurationLimit, false);
+	}
+	TimerManager.SetTimer(SpeedHandle, OnSpeedCheck, 0.25f, true);
+}
+void UWallRunUtilityLibrary::ClearWallRunTimers(const UWorld* World, FTimerHandle& DurationHandle, FTimerHandle& SpeedHandle) {
+	if (!World) {
+		return;
+	}
+
+	FTimerManager& TimerManager = World->GetTimerManager();
+	TimerManager.ClearTimer(DurationHandle);
+	TimerManager.ClearTimer(SpeedHandle);
 }
