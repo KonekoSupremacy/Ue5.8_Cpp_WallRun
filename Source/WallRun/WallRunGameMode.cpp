@@ -1,4 +1,4 @@
-// Copyright: Elixir Studios
+// Copyright: KonekoSupremacy
 
 #include "WallRunGameMode.h"
 

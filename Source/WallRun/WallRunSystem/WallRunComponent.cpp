@@ -1,4 +1,4 @@
-// Copyright: Elixir Studios
+// Copyright: KonekoSupremacy
 
 // Game Includes
 #include "WallRunComponent.h"

@@ -1,4 +1,4 @@
-// Copyright: Elixir Studios
+// Copyright: KonekoSupremacy
 
 #pragma once
 

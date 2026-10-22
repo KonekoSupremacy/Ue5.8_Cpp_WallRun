@@ -1,4 +1,4 @@
-// Copyright: Elixir Studios
+// Copyright: KonekoSupremacy
 
 using UnrealBuildTool;
 using System.Collections.Generic;

@@ -1,6 +1,6 @@
 # License
 
-Copyright (c) 2026 Elixir Studios. All rights reserved.
+Copyright (c) 2026 KonekoSupremacy. All rights reserved.
 
 Permission is granted, free of charge, to any person obtaining a copy of this
 software and the associated documentation files (the "Software"), to use, copy,
@@ -9,7 +9,7 @@ projects, including games that are sold commercially.
 
 The Software may not be redistributed, resold, or re-uploaded as a stand-alone
 pack, asset, template, or plugin — in whole or in part, free or paid — without
-explicit written permission from Elixir Studios.
+explicit written permission from KonekoSupremacy.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

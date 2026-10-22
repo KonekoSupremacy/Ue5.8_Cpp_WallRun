@@ -1,4 +1,4 @@
-// Copyright: Elixir Studios
+// Copyright: KonekoSupremacy
 
 #include "WallRun.h"
 #include "Modules/ModuleManager.h"
