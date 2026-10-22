@@ -126,7 +126,7 @@ bool UGA_WallRun::StartWallJump() {
 	return true;
 }
 void UGA_WallRun::StopWallJump() {
-	if (!UWallRunUtilityLibrary::EndWallJump(CharacterAvatar, Settings, State, WallJumpingTag)) {
+	if (!UWallRunUtilityLibrary::EndWallJump(CharacterAvatar, State, WallJumpingTag)) {
 		return;
 	}
 

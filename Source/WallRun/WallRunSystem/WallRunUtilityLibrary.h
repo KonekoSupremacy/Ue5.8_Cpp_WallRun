@@ -23,7 +23,7 @@ public:
 	static bool IsWallRunnable(const AActor* WallActor, const FWallRunSettings& Settings);
 	static EWallRunSide DetermineWallSideFromCamera(const ACharacter* Character, const FVector& WallNormal);
 	static bool DetectWall(ACharacter* Character, EWallRunSide Side, const FWallRunSettings& Settings, FWallRunState& InOutState);
-	static bool CheckCornerAngle(const FVector& FirstWallNormal, const FVector& SecondWallNormal, EWallRunSide Side, const 
+	static bool CheckCornerAngle(const FVector& FirstWallNormal, const FVector& SecondWallNormal, const
 		FWallRunSettings& Settings, float& OutAngle);
 	
 	static bool CheckTopArea(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, float DeltaTime);
@@ -69,7 +69,8 @@ public:
 	static EWallRunStopReason TickActiveWallRun(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
 		float DeltaTime);
 	static float WallRunStopLockoutDuration(EWallRunStopReason Reason);
-	static void TickWallJumpIdle(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, float DeltaTime, const TFunction<void(bool)>& OnSetTickStatus);
+	static void TickWallJumpIdle(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, float DeltaTime, 
+		const TFunction<void(bool)>& OnSetTickStatus);
 	static bool TryFindWallRunStart(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, float DeltaTime);
 
 	static bool UpdateSpeedMonitor(const ACharacter* Character, FWallRunState& InOutState);

@@ -117,21 +117,7 @@ bool UWallRunUtilityLibrary::DetectWall(ACharacter* Character, EWallRunSide Side
 		if (bSecondaryHit && IsWallRunnable(SecondaryHitResult.GetActor(), Settings)) {
 			float CornerAngle = 0.0f;
 			if (CheckCornerAngle(InOutState.PrimaryTraceNormal, SecondaryHitResult
-				.ImpactNormal, EffectiveSide, Settings, CornerAngle)) {
-				// look ahead check to prevent false 0 deg
-				FHitResult FarHitResult;
-				if (TraceRelativeToWall(Character, FarHitResult, InOutState.PrimaryTraceNormal, InOutState
-					.CurrentWallLocation, 3.0f, -2.5f, 0.75f, -2.5f, 
-					EffectiveSide, Settings.TraceChannel)) {
-					if (IsWallRunnable(FarHitResult.GetActor(), Settings)) {
-						float FarAngle = 0.0f;
-						if (!CheckCornerAngle(InOutState.PrimaryTraceNormal, FarHitResult
-							.ImpactNormal, EffectiveSide, Settings, FarAngle)) {
-							return false;
-						}
-					}
-				}
-
+				.ImpactNormal, Settings, CornerAngle)) {
 				InOutState.SecondaryTraceNormal = SecondaryHitResult.ImpactNormal;
 				InOutState.AverageWallNormal = (InOutState.AverageWallNormal + InOutState.SecondaryTraceNormal).GetSafeNormal();
 				return true;
@@ -139,11 +125,11 @@ bool UWallRunUtilityLibrary::DetectWall(ACharacter* Character, EWallRunSide Side
 
 			FHitResult BackupHitResult;
 			if (TraceRelativeToWall(Character, BackupHitResult, InOutState.PrimaryTraceNormal, InOutState
-				.CurrentWallLocation, 3.0f, -2.0f, 0.75f, -2.5f, 
-				EffectiveSide, Settings.TraceChannel)) {
+				.CurrentWallLocation, 3.0f, -2.0f, 0.75f, 
+				-2.5f, EffectiveSide, Settings.TraceChannel)) {
 				if (IsWallRunnable(BackupHitResult.GetActor(), Settings)) {
-					if (CheckCornerAngle(InOutState.PrimaryTraceNormal, BackupHitResult.ImpactNormal, 
-						EffectiveSide, Settings, CornerAngle)) {
+					if (CheckCornerAngle(InOutState.PrimaryTraceNormal, BackupHitResult.ImpactNormal,
+						Settings, CornerAngle)) {
 						InOutState.SecondaryTraceNormal = BackupHitResult.ImpactNormal;
 						InOutState.AverageWallNormal = (InOutState.AverageWallNormal + InOutState.SecondaryTraceNormal).GetSafeNormal();
 						return true;
@@ -161,7 +147,7 @@ bool UWallRunUtilityLibrary::DetectWall(ACharacter* Character, EWallRunSide Side
 				if (IsWallRunnable(CornerHitResult.GetActor(), Settings)) {
 					float CornerAngle = 0.0f;
 					if (CheckCornerAngle(InOutState.PrimaryTraceNormal, CornerHitResult
-						.ImpactNormal, EffectiveSide, Settings, CornerAngle)) {
+						.ImpactNormal, Settings, CornerAngle)) {
 						InOutState.SecondaryTraceNormal = CornerHitResult.ImpactNormal;
 						InOutState.AverageWallNormal = (InOutState.AverageWallNormal + InOutState.SecondaryTraceNormal).GetSafeNormal();
 						return true;
@@ -176,21 +162,15 @@ bool UWallRunUtilityLibrary::DetectWall(ACharacter* Character, EWallRunSide Side
 
 	return false;
 }
-bool UWallRunUtilityLibrary::CheckCornerAngle(const FVector& FirstWallNormal, const FVector& SecondWallNormal, const EWallRunSide Side, 
+bool UWallRunUtilityLibrary::CheckCornerAngle(const FVector& FirstWallNormal, const FVector& SecondWallNormal,
 	const FWallRunSettings& Settings, float& OutAngle) {
 	const FVector FirstNorm2D = FirstWallNormal.GetSafeNormal2D();
 	const FVector SecondNorm2D = SecondWallNormal.GetSafeNormal2D();
 
-	const float Dot = FirstNorm2D.Dot(SecondNorm2D);
-	const float AngleDeg = FMath::RadiansToDegrees(FMath::Acos(Dot));
-	OutAngle = AngleDeg;
+	const float Dot = FMath::Clamp(FirstNorm2D.Dot(SecondNorm2D), -1.0f, 1.0f);
+	OutAngle = FMath::RadiansToDegrees(FMath::Acos(Dot));
 
-	const FVector Cross = FirstWallNormal.Cross(SecondWallNormal);
-	const bool bIsLeftOutside = (Cross.Z < 0.0f && Side == EWallRunSide::Left);
-	const bool bIsRightOutside = (Cross.Z >= 0.0f && Side == EWallRunSide::Right);
-
-	const float AngleLimit = (bIsLeftOutside || bIsRightOutside) ? Settings.OutsideCornerAngleLimit : Settings.InsideCornerAngleLimit;
-	return OutAngle <= AngleLimit;
+	return OutAngle <= Settings.CornerAngleLimit;
 }
 
 bool UWallRunUtilityLibrary::CheckTopArea(ACharacter* Character, const FWallRunSettings& Settings, FWallRunState& InOutState, 
@@ -703,7 +683,8 @@ bool UWallRunUtilityLibrary::TryFindWallRunStart(ACharacter* Character, const FW
 			const EWallRunSide Side = DetermineWallSideFromCamera(Character, FrontHit.ImpactNormal);
 			if (DetectWall(Character, Side, Settings, InOutState)) {
 				float FrontCornerAngle = 0.0f;
-				if (CheckCornerAngle(FrontHit.ImpactNormal, InOutState.PrimaryTraceNormal, Side, Settings, FrontCornerAngle)) {
+				if (CheckCornerAngle(FrontHit.ImpactNormal, InOutState.PrimaryTraceNormal, Settings, 
+					FrontCornerAngle)) {
 					if (CheckBottomArea(Character, Settings, InOutState) &&
 						CheckTopArea(Character, Settings, InOutState, DeltaTime)) {
 						return true;

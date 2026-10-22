@@ -42,12 +42,9 @@ struct WALLRUN_API FWallRunSettings {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Collision", meta = (ClampMin = "5.0", ClampMax = "50.0"))
 	float CapsuleClearance = 5.0f;
 
-	/** How much  of an outsid corner can be navigated, in deg */
+	/** Max angle between two wall normals that can be navigated, inside or outside corner, in deg */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Corners", meta = (ClampMin = "0.0", ClampMax = "90.0"))
-	float InsideCornerAngleLimit = 80.0f;
-	/** How much of an outside wall angle can be navigated, in deg */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Corners", meta = (ClampMin = "0.0", ClampMax = "90.0"))
-	float OutsideCornerAngleLimit = 80.0f;
+	float CornerAngleLimit = 85.0f;
 	
 	// Movement
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wall Run|Movement")
