@@ -1,126 +1,86 @@
 # UE5 C++ Wall Running System
 
-A clean, modular, and performant Wall Running & Wall Jumping system built in C++ for Unreal Engine 5. Supports both standalone **Actor Component (`UWallRunComponent`)** and **Gameplay Ability System (`UWallRunGameplayAbility`)** workflows with seamless Animation Blueprint integration.
+![Wall running along a wall](docs/images/shot-02-wall-run-hero.png)
 
----
+A modular, performant wall running and wall jumping system in C++ for Unreal Engine 5.8. Pick one of two setups: a standalone actor component, or a Gameplay Ability System ability. Both share the same core logic and the same Animation Blueprint integration.
 
-## Architecture Overview
+Animations are not included. The Animation Blueprint setup is covered in the [Animation Setup Guide](#animation-setup-guide).
 
-All animations are handled directly inside the **Animation Blueprint (ABP)** rather than being hardcoded into C++ animation montages. This architecture provides several major advantages:
-- **Clean Locomotion Blending:** Wall running acts as an in-air locomotion state with proper entry/exit blend times rather than overriding montage slots.
-- **IK & Control Rig Compatibility:** Full control over Foot IK and Control Rig bone chains to avoid feet pinning to the ground or pulling unnaturally while running on elevated walls.
-- **Dynamic Play Rate & Banking:** Animation playback speeds scale fluidly with character velocity, and vertical arc angles drive procedural spine lean.
+## On this page
 
----
+1. [Setup Guide](#setup-guide)
+2. [Animation Setup Guide](#animation-setup-guide)
+3. [FAQ](#faq)
+4. [Extras](#extras)
+   - [Configuration](#configuration)
+   - [License](#license)
 
-## Animation Blueprint (ABP) Integration Guide
+## Setup Guide
 
-### 1. Reparent Your Anim Blueprint
-The system includes `UWallRunAnimInstance`, which automatically finds the character's `UWallRunComponent` (or active `UWallRunGameplayAbility`) and synchronizes wall-run state every frame.
+Full guide: [docs/setup-guide.md](docs/setup-guide.md)
 
-1. Open your Character's Animation Blueprint (e.g. `ABP_Manny` / `ABP_Quinn`).
-2. Go to **File > Reparent Blueprint**.
-3. Select **`WallRunAnimInstance`**.
-4. If your project already uses a custom `UAnimInstance` C++ base, you can instead cast to `UWallRunComponent` or query `FWallRunState` in your Event Graph using `TryGetPawnOwner()->FindComponentByClass<UWallRunComponent>()`.
+Do the common installation first, then follow one setup.
 
----
+| Step | Where |
+| :--- | :--- |
+| Requirements | [Requirements](docs/setup-guide.md#requirements) |
+| Copy the source files | [Copy the source files](docs/setup-guide.md#copy-the-source-files) |
+| Build.cs modules | [Update Build.cs](docs/setup-guide.md#update-buildcs) |
+| Plugin in the .uproject | [Update your .uproject](docs/setup-guide.md#update-your-uproject) |
+| Rename the API macro | [Rename the API macro](docs/setup-guide.md#rename-the-api-macro) |
+| Build | [Rebuild](docs/setup-guide.md#rebuild) |
+| Choose a setup | [Choose your setup](docs/setup-guide.md#choose-your-setup) |
 
-### 2. Available Anim Instance Variables
-The following properties are exposed directly to Blueprint in `UWallRunAnimInstance`:
+Then pick one:
 
-| Variable | Type | Description |
+| | [Component setup](docs/setup-component.md) | [GAS setup](docs/setup-gas.md) |
 | :--- | :--- | :--- |
-| `bIsWallRunning` | `Boolean` | `true` when the character is actively wall running. |
-| `bIsWallJumping` | `Boolean` | `true` while executing a launch off the wall. |
-| `WallSide` | `EWallRunSide` | Enum: `Left` or `Right`. Identifies which side of the character is against the wall. |
-| `WallRunAnimPlayRate` | `Float` | Dynamic playback rate multiplier (scaled from `0.95` to `1.25` based on speed). |
-| `CurrentArcAngle` | `Float` | Vertical arc pitch angle (positive when rising, negative when descending). |
-| `CurrentTurnRate` | `Float` | Yaw angular turning velocity (useful for banking into curved walls). |
-| `CurrentSpeed` | `Float` | Current character movement speed in Unreal Units/sec. |
+| Core class | `UWallRunComponent` | `UGA_WallRun` |
+| Needs an Ability System Component | No | Yes |
+| State exposed as gameplay tags | Only if the character has an ASC | Yes |
+| Block wall running from other systems | Your own checks | Tag `Status.BlockingAction.WallRun` |
+| Best for | Most projects, quickest to set up | Projects already built on GAS |
 
----
+Not sure? Start with the [Component setup](docs/setup-component.md).
 
-### 3. Setting Up the State Machine (Locomotion / In-Air)
+**Component setup sections:** [included character](docs/setup-component.md#path-a-use-the-included-character), [your own character](docs/setup-component.md#path-b-add-it-to-your-own-character), [tune the settings](docs/setup-component.md#tune-the-settings), [mark walls](docs/setup-component.md#mark-which-walls-can-be-run-on), [events](docs/setup-component.md#listen-to-events), [check it works](docs/setup-component.md#check-it-works), [troubleshooting](docs/setup-component.md#troubleshooting)
 
-In your Main Locomotion State Machine (or In-Air State Machine):
+**GAS setup sections:** [included character](docs/setup-gas.md#path-a-use-the-included-character), [your own character](docs/setup-gas.md#path-b-add-it-to-your-own-character), [gameplay tags](docs/setup-gas.md#gameplay-tags), [block with tags](docs/setup-gas.md#block-wall-running-with-tags), [tune the settings](docs/setup-gas.md#tune-the-settings), [check it works](docs/setup-gas.md#check-it-works), [troubleshooting](docs/setup-gas.md#troubleshooting)
 
-```
-+----------------+      bIsWallRunning == true       +----------------+
-|                | --------------------------------> |                |
-| Falling/In-Air |                                   |  Wall Running  |
-|                | <-------------------------------- |                |
-+----------------+      bIsWallRunning == false      +----------------+
-```
+## Animation Setup Guide
 
-#### Inside the `Wall Running` State:
-1. Add a **Blend Poses by `EWallRunSide`** (or **Blend Poses by Bool** checking `WallSide == EWallRunSide::Right`).
-2. Wire your **Wall Run Right** animation into the `Right` pose.
-3. Wire your **Wall Run Left** animation into the `Left` pose.
-4. Connect `WallRunAnimPlayRate` to the **Play Rate** input pin of both animation sequence player nodes.
-5. Set transition crossfade duration to `0.15s` - `0.2s` with **Cubic** or **Hermite** easing for smooth entry/exit blending.
+Full guide: [docs/animation-setup-guide.md](docs/animation-setup-guide.md)
 
----
+All animation is handled in your Animation Blueprint, so wall running blends like any other locomotion state.
 
-### 4. Handling Foot IK / Control Rig (Crucial Step)
+- [Reparent your Anim Blueprint](docs/animation-setup-guide.md#reparent-your-anim-blueprint)
+- [Available variables](docs/animation-setup-guide.md#available-variables)
+- [Set up the state machine](docs/animation-setup-guide.md#set-up-the-state-machine)
+- [Disable Foot IK while wall running](docs/animation-setup-guide.md#disable-foot-ik-while-wall-running)
+- [Procedural lean and spine tilt](docs/animation-setup-guide.md#procedural-lean-and-spine-tilt)
+- [Using your own AnimInstance](docs/animation-setup-guide.md#using-your-own-animinstance)
 
-> [!WARNING]  
-> If using UE5 Mannequin or Metahumans with a Foot IK Control Rig (such as `CR_Mannequin_FootIK` in `ABP_Manny`), the IK trace by default casts downward towards the ground. When wall running mid-air, the traces may detect the floor 500 units below and pull the character's feet down into an unnatural or stretched pose.
+## FAQ
 
-#### How to Disable Foot IK During Wall Run:
-1. In the **AnimGraph**, find the **Control Rig** node responsible for Foot IK.
-2. Select the node and locate the **Alpha** pin in the Details panel.
-3. Drive the Alpha pin with a float:
-   - If `bIsWallRunning` is `true`, blend Alpha to `0.0`.
-   - If `bIsWallRunning` is `false`, blend Alpha to `1.0`.
-4. Alternatively, wrap the Control Rig node in a **Blend Poses by Bool** node:
-   - **True (bIsWallRunning):** Bypass the Control Rig node directly to the output pose.
-   - **False:** Run through the Foot IK Control Rig node.
+Full FAQ: [docs/faq.md](docs/faq.md)
 
----
+- [Component or GAS?](docs/faq.md#component-or-gas)
+- [Do I need GAS if I pick the component?](docs/faq.md#do-i-need-gas-if-i-pick-the-component)
+- [Why does the wall run not start?](docs/faq.md#why-does-the-wall-run-not-start)
+- [Why can I not steer while wall running?](docs/faq.md#why-can-i-not-steer-while-wall-running)
+- [How do I allow or block specific walls?](docs/faq.md#how-do-i-allow-or-block-specific-walls)
+- [What does the corner angle limit do?](docs/faq.md#what-does-the-corner-angle-limit-do)
+- [My character does not play any wall run animation](docs/faq.md#my-character-does-not-play-any-wall-run-animation)
+- [Does it work in a packaged build?](docs/faq.md#does-it-work-in-a-packaged-build)
 
-### 5. Procedural Lean & Spine Tilt (Optional Enhancement)
+## Extras
 
-To give characters extra weight and immersion when running along curved surfaces or arcing up/down:
-1. In the AnimGraph, place a **Transform (Modify) Bone** node targeting `spine_01` or `spine_02`.
-2. Map `CurrentArcAngle` to **Rotation Pitch**:
-   - Upward arc tilts character slightly upward; downward descent tilts forward.
-3. Map `CurrentTurnRate` to **Rotation Roll**:
-   - Banking into curved inside/outside corners.
-4. Set **Alpha** driven by `bIsWallRunning` with smooth interpolation (`FInterpTo`).
+### Configuration
 
----
+Full reference: [docs/configuration.md](docs/configuration.md)
 
-## C++ Core Components
+[General](docs/configuration.md#general), [collision](docs/configuration.md#collision), [corners](docs/configuration.md#corners), [movement](docs/configuration.md#movement), [wall jump](docs/configuration.md#wall-jump), [visuals](docs/configuration.md#visuals), [runtime state](docs/configuration.md#runtime-state)
 
-### 1. `UWallRunComponent` (Standard Actor Component)
-- Attach to any `ACharacter`.
-- Automatically binds to `OnMovementModeChanged` and `OnActorHit`.
-- Handles wall detection, ray traces, collision clearance, corner navigation, and smooth lateral mesh positioning.
-- Exposes delegates:
-  - `OnWallRunStarted(EWallRunSide Side)`
-  - `OnWallRunEnded()`
-  - `OnWallJump(const FVector& LaunchVelocity)`
-  - `OnWallSideChanged(EWallRunSide NewSide)`
+### License
 
-### 2. `UWallRunGameplayAbility` (Gameplay Ability System)
-- Inherits from `UGameplayAbility` (`InstancedPerActor`).
-- Granted to player characters using an `AbilitySystemComponent`.
-- Manages ability activation/cancellation, gameplay tags (`Status.WallRunning`, `Status.WallJumping`), and block tags (`Status.BlockingAction.HorizontalWallRun`).
-
-### 3. `UWallRunUtilityLibrary`
-- Stateless, pure static function library implementing all core tracing, velocity projection, corner angle limits, and arc calculations used by both the component and ability.
-
----
-
-## Configuration (`FWallRunSettings`)
-
-Key properties configurable in Details / Defaults:
-- **`WallRunSpeed`** (`800.0`): Target forward wall-running velocity.
-- **`WallRunAcceleration`** (`50000.0`): Instantaneous response when latching onto a wall.
-- **`ArcAmount`** (`0.65`): Vertical arc shape (`0.0` = flat horizontal line, `1.0` = high arc).
-- **`WallRunDurationLimit`** (`3.0s`): Maximum time allowed on a single wall before dropping (`0` = unlimited).
-- **`WallJumpAngle`** (`45.0` deg): Launch trajectory angle outward from the wall.
-- **`WallJumpHorizontalVelocity`** (`800.0`) & **`WallJumpVerticalVelocity`** (`500.0`): Launch impulse strengths.
-- **`MeshWallOffset`** (`5.0` cm): Smooth lateral mesh adjustment to eliminate visual floating without clipping the capsule.
-- **`MinStartSpeed`** (`200.0`): Minimum horizontal speed required to initiate a wall run if no movement input is provided. Prevents triggering a wall run when performing a neutral jump in place beside a wall.
-- **`bRequiresTag`** (`false`): When `true`, only surfaces with actor tag `HorizontalWallRun` allow wall running. Surfaces with `NoWallRun` are always blocked.
+See [LICENSE.md](LICENSE.md).
