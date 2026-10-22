@@ -1,6 +1,6 @@
 # UE5 C++ Wall Running System
 
-![Wall running along a wall](docs/images/shot-02-wall-run-hero.png)
+![Wall Run System, C++ wall run and wall jump for UE5](docs/images/thumbnail.png)
 
 A modular, performant wall running and wall jumping system in C++ for Unreal Engine 5.8. Pick one of two setups: a standalone actor component, or a Gameplay Ability System ability. Both share the same core logic and the same Animation Blueprint integration.
 
@@ -19,33 +19,21 @@ Animations are not included. The Animation Blueprint setup is covered in the [An
 
 Full guide: [docs/setup-guide.md](docs/setup-guide.md)
 
-Do the common installation first, then follow one setup.
+Two complete setups. Pick one and follow it from the first step to the last.
 
-| Step | Where |
-| :--- | :--- |
-| Requirements | [Requirements](docs/setup-guide.md#requirements) |
-| Copy the source files | [Copy the source files](docs/setup-guide.md#copy-the-source-files) |
-| Build.cs modules | [Update Build.cs](docs/setup-guide.md#update-buildcs) |
-| Plugin in the .uproject | [Update your .uproject](docs/setup-guide.md#update-your-uproject) |
-| Rename the API macro | [Rename the API macro](docs/setup-guide.md#rename-the-api-macro) |
-| Build | [Rebuild](docs/setup-guide.md#rebuild) |
-| Choose a setup | [Choose your setup](docs/setup-guide.md#choose-your-setup) |
-
-Then pick one:
-
-| | [Component setup](docs/setup-component.md) | [GAS setup](docs/setup-gas.md) |
+| | [Component Setup](docs/setup-component.md) | [GAS Setup](docs/setup-gas.md) |
 | :--- | :--- | :--- |
 | Core class | `UWallRunComponent` | `UGA_WallRun` |
-| Needs an Ability System Component | No | Yes |
-| State exposed as gameplay tags | Only if the character has an ASC | Yes |
+| Your character needs an Ability System Component | No | Yes |
+| Wall run state as gameplay tags | Only if the character has one | Yes |
 | Block wall running from other systems | Your own checks | Tag `Status.BlockingAction.WallRun` |
 | Best for | Most projects, quickest to set up | Projects already built on GAS |
 
-Not sure? Start with the [Component setup](docs/setup-component.md).
+Not sure? Start with the Component Setup.
 
-**Component setup sections:** [included character](docs/setup-component.md#path-a-use-the-included-character), [your own character](docs/setup-component.md#path-b-add-it-to-your-own-character), [tune the settings](docs/setup-component.md#tune-the-settings), [mark walls](docs/setup-component.md#mark-which-walls-can-be-run-on), [events](docs/setup-component.md#listen-to-events), [check it works](docs/setup-component.md#check-it-works), [troubleshooting](docs/setup-component.md#troubleshooting)
+**Component Setup steps:** [1 Requirements](docs/setup-component.md#step-1-requirements), [2 Copy files](docs/setup-component.md#step-2-copy-the-source-files), [3 Build.cs](docs/setup-component.md#step-3-update-buildcs), [4 .uproject](docs/setup-component.md#step-4-update-your-uproject), [5 API macro and log](docs/setup-component.md#step-5-rename-the-api-macro-and-add-the-log-category), [6 Build](docs/setup-component.md#step-6-build), [7 Character](docs/setup-component.md#step-7-set-up-your-character), [8 Walls](docs/setup-component.md#step-8-mark-which-walls-can-be-run-on), [9 Settings](docs/setup-component.md#step-9-tune-the-settings), [10 Animation](docs/setup-component.md#step-10-add-animation), [11 Check it works](docs/setup-component.md#step-11-check-it-works), [Events](docs/setup-component.md#listen-to-events), [Troubleshooting](docs/setup-component.md#troubleshooting)
 
-**GAS setup sections:** [included character](docs/setup-gas.md#path-a-use-the-included-character), [your own character](docs/setup-gas.md#path-b-add-it-to-your-own-character), [gameplay tags](docs/setup-gas.md#gameplay-tags), [block with tags](docs/setup-gas.md#block-wall-running-with-tags), [tune the settings](docs/setup-gas.md#tune-the-settings), [check it works](docs/setup-gas.md#check-it-works), [troubleshooting](docs/setup-gas.md#troubleshooting)
+**GAS Setup steps:** [1 Requirements](docs/setup-gas.md#step-1-requirements), [2 Copy files](docs/setup-gas.md#step-2-copy-the-source-files), [3 Build.cs](docs/setup-gas.md#step-3-update-buildcs), [4 .uproject](docs/setup-gas.md#step-4-update-your-uproject), [5 API macro and log](docs/setup-gas.md#step-5-rename-the-api-macro-and-add-the-log-category), [6 Build](docs/setup-gas.md#step-6-build), [7 Character](docs/setup-gas.md#step-7-set-up-your-character), [8 Walls](docs/setup-gas.md#step-8-mark-which-walls-can-be-run-on), [9 Settings](docs/setup-gas.md#step-9-tune-the-settings), [10 Animation](docs/setup-gas.md#step-10-add-animation), [11 Check it works](docs/setup-gas.md#step-11-check-it-works), [Gameplay tags](docs/setup-gas.md#gameplay-tags), [Block with tags](docs/setup-gas.md#block-wall-running-with-tags), [Troubleshooting](docs/setup-gas.md#troubleshooting)
 
 ## Animation Setup Guide
 

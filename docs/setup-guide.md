@@ -2,101 +2,48 @@
 
 [Back to README](../README.md) | [Setup Guide](setup-guide.md) | [Animation Setup Guide](animation-setup-guide.md) | [FAQ](faq.md) | [Configuration](configuration.md)
 
-Two steps: do the common installation below, then follow either the Component setup or the GAS setup. After that, continue with the [Animation Setup Guide](animation-setup-guide.md).
+There are two complete setups. Pick one and follow it from the first step to the last. Each one is self-contained, so you never need to read the other.
 
 ## On this page
 
-- [Requirements](#requirements)
-- [Copy the source files](#copy-the-source-files)
-- [Update Build.cs](#update-buildcs)
-- [Update your .uproject](#update-your-uproject)
-- [Rename the API macro](#rename-the-api-macro)
-- [Rebuild](#rebuild)
-- [Choose your setup](#choose-your-setup)
-  - [Component setup](setup-component.md)
-  - [GAS setup](setup-gas.md)
+- [Pick your setup](#pick-your-setup)
+- [What the two setups share](#what-the-two-setups-share)
+- [After setup](#after-setup)
 
-## Requirements
+## Pick your setup
 
-- Unreal Engine 5.8, with a C++ project
-- Enhanced Input (the base character classes bind to it)
-- The `GameplayAbilities` plugin enabled, even if you only use the component setup, because the shared utility library includes the GAS headers
-
-## Copy the source files
-
-Copy these into your project's module `Source/<YourModule>/` folder, keeping the folder layout:
-
-| Path | Needed for |
-| :--- | :--- |
-| `WallRunSystem/` (whole folder) | Both setups |
-| `WallRunGameplayTags.h` and `.cpp` | Both setups |
-| `TickableAbility.h` | GAS setup |
-| `PlayerCharacter.h` and `.cpp` | Optional base character, needed by `UGA_WallRun` for jump input |
-| `WallRunPlayerCharacter.h` and `.cpp` | Optional, component setup base character |
-| `GASPlayerCharacter.h` and `.cpp` | Optional, GAS setup base character |
-| `WallRunPlayerController.h` and `.cpp` | Optional, adds your input mapping contexts |
-| `WallRun.h` and `.cpp` | Only if you want the `LogWallRun` category used by `PlayerCharacter` |
-
-If you use your own character class instead of the optional base classes, skip those rows and follow the "your own character" section of your chosen setup.
-
-## Update Build.cs
-
-Add these modules to your module's `Build.cs`:
-
-```csharp
-PublicDependencyModuleNames.AddRange(new string[] {
-	"EnhancedInput",
-	"GameplayAbilities",
-	"GameplayTags",
-	"GameplayTasks"
-});
-
-PublicIncludePaths.AddRange(new string[] {
-	"YourModule",
-	"YourModule/WallRunSystem"
-});
-```
-
-The include paths let the wall run files find each other with plain `#include "WallRunTypes.h"` style includes.
-
-## Update your .uproject
-
-Enable the GAS plugin:
-
-```json
-"Plugins": [
-	{
-		"Name": "GameplayAbilities",
-		"Enabled": true
-	}
-]
-```
-
-Make sure there is no trailing comma after the last plugin entry, strict JSON parsers reject it.
-
-## Rename the API macro
-
-The files use `WALLRUN_API`. Replace it with your own module's macro, for example `MYGAME_API`, across all copied headers. Use a project-wide find and replace.
-
-## Rebuild
-
-Close the editor, regenerate project files, and build the editor target. The native gameplay tags (`Status.WallRunning` and friends) register themselves in code, so there is no tag ini to edit.
-
-## Choose your setup
-
-| | [Component setup](setup-component.md) | [GAS setup](setup-gas.md) |
+| | [Component Setup](setup-component.md) | [GAS Setup](setup-gas.md) |
 | :--- | :--- | :--- |
 | Core class | `UWallRunComponent` | `UGA_WallRun` |
-| Needs an Ability System Component | No | Yes |
-| State exposed as gameplay tags | Only if the character has an ASC | Yes |
+| Your character needs an Ability System Component | No | Yes |
+| Wall run state as gameplay tags | Only if the character has one | Yes |
 | Block wall running from other systems | Your own checks | Tag `Status.BlockingAction.WallRun` |
 | Best for | Most projects, quickest to set up | Projects already built on GAS |
 
-Not sure? Start with the [Component setup](setup-component.md).
+Not sure? Start with the Component Setup.
 
-Jump straight to a section:
+### Component Setup
 
-- Component: [included character](setup-component.md#path-a-use-the-included-character), [your own character](setup-component.md#path-b-add-it-to-your-own-character), [wall tags](setup-component.md#mark-which-walls-can-be-run-on), [events](setup-component.md#listen-to-events), [troubleshooting](setup-component.md#troubleshooting)
-- GAS: [included character](setup-gas.md#path-a-use-the-included-character), [your own character](setup-gas.md#path-b-add-it-to-your-own-character), [gameplay tags](setup-gas.md#gameplay-tags), [blocking with tags](setup-gas.md#block-wall-running-with-tags), [troubleshooting](setup-gas.md#troubleshooting)
+[Open the full Component Setup](setup-component.md), or jump to a step:
 
-When your setup works, continue with the [Animation Setup Guide](animation-setup-guide.md).
+[Requirements](setup-component.md#step-1-requirements), [copy files](setup-component.md#step-2-copy-the-source-files), [Build.cs](setup-component.md#step-3-update-buildcs), [.uproject](setup-component.md#step-4-update-your-uproject), [API macro and log](setup-component.md#step-5-rename-the-api-macro-and-add-the-log-category), [build](setup-component.md#step-6-build), [character](setup-component.md#step-7-set-up-your-character), [walls](setup-component.md#step-8-mark-which-walls-can-be-run-on), [settings](setup-component.md#step-9-tune-the-settings), [animation](setup-component.md#step-10-add-animation), [check it works](setup-component.md#step-11-check-it-works), [troubleshooting](setup-component.md#troubleshooting)
+
+### GAS Setup
+
+[Open the full GAS Setup](setup-gas.md), or jump to a step:
+
+[Requirements](setup-gas.md#step-1-requirements), [copy files](setup-gas.md#step-2-copy-the-source-files), [Build.cs](setup-gas.md#step-3-update-buildcs), [.uproject](setup-gas.md#step-4-update-your-uproject), [API macro and log](setup-gas.md#step-5-rename-the-api-macro-and-add-the-log-category), [build](setup-gas.md#step-6-build), [character](setup-gas.md#step-7-set-up-your-character), [walls](setup-gas.md#step-8-mark-which-walls-can-be-run-on), [settings](setup-gas.md#step-9-tune-the-settings), [animation](setup-gas.md#step-10-add-animation), [check it works](setup-gas.md#step-11-check-it-works), [gameplay tags](setup-gas.md#gameplay-tags), [troubleshooting](setup-gas.md#troubleshooting)
+
+## What the two setups share
+
+The two setups differ in the character and activation steps, but the `Build.cs` and the copied core files are nearly the same. That is not an oversight:
+
+- The shared logic in `WallRunSystem/` reads and sets gameplay tags, and the animation instance can read either setup. So both setups need the `GameplayAbilities`, `GameplayTags` and `GameplayTasks` modules, even if your game never uses the Ability System in the Component Setup.
+- The `WallRunSystem` folder holds both the component and the ability. The one you do not use still compiles, so keep the folder whole.
+- `PublicIncludePaths.Add("YourModule")` is required in both. Files inside `WallRunSystem/` include `PlayerCharacter.h`, `WallRunGameplayTags.h` and `TickableAbility.h` from the module root by plain name, and the module root is not on the include path by default.
+
+Do not copy `WallRun.cpp` in either setup. It contains your module's `IMPLEMENT_PRIMARY_GAME_MODULE`. Each setup's Step 5 shows what to add instead.
+
+## After setup
+
+Continue with the [Animation Setup Guide](animation-setup-guide.md). Questions and fixes are in the [FAQ](faq.md), and every setting is listed in [Configuration](configuration.md).
