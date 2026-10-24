@@ -2,9 +2,9 @@
 
 ![Wall Run System, C++ wall run and wall jump for UE5](docs/images/thumbnail.png)
 
-A modular, performant wall running and wall jumping system in C++ for Unreal Engine 5.8. Pick one of two setups: a standalone actor component, or a Gameplay Ability System ability. Both share the same core logic and the same Animation Blueprint integration.
+A modular, performant wall running and wall jumping plugin in C++ for Unreal Engine 5.8. Drop `WallRunSystem` into your project's `Plugins/` folder, enable it, and add `WallRunSystem` to your `Build.cs`. Pick one of two setups: a standalone actor component, or a Gameplay Ability System ability. Both share the same core logic and the same Animation Blueprint integration.
 
-Animations are not included. The Animation Blueprint setup is covered in the [Animation Setup Guide](#animation-setup-guide).
+A playable demo map, the mannequin and example Blueprints ship inside the plugin, see [Try the demo](docs/setup-guide.md#try-the-demo). Wall run animations are not included. The Animation Blueprint setup is covered in the [Animation Setup Guide](#animation-setup-guide).
 
 ## On this page
 
@@ -31,9 +31,9 @@ Two complete setups. Pick one and follow it from the first step to the last.
 
 Not sure? Start with the Component Setup.
 
-**Component Setup steps:** [1 Requirements](docs/setup-component.md#step-1-requirements), [2 Copy files](docs/setup-component.md#step-2-copy-the-source-files), [3 Build.cs](docs/setup-component.md#step-3-update-buildcs), [4 .uproject](docs/setup-component.md#step-4-update-your-uproject), [5 API macro and log](docs/setup-component.md#step-5-rename-the-api-macro-and-add-the-log-category), [6 Build](docs/setup-component.md#step-6-build), [7 Character](docs/setup-component.md#step-7-set-up-your-character), [8 Walls](docs/setup-component.md#step-8-mark-which-walls-can-be-run-on), [9 Settings](docs/setup-component.md#step-9-tune-the-settings), [10 Animation](docs/setup-component.md#step-10-add-animation), [11 Check it works](docs/setup-component.md#step-11-check-it-works), [Events](docs/setup-component.md#listen-to-events), [Troubleshooting](docs/setup-component.md#troubleshooting)
+**Component Setup steps:** [1 Requirements](docs/setup-component.md#step-1-requirements), [2 Install the plugin](docs/setup-component.md#step-2-install-the-plugin), [3 Build.cs](docs/setup-component.md#step-3-update-buildcs), [4 Build](docs/setup-component.md#step-4-build), [5 Character](docs/setup-component.md#step-5-set-up-your-character), [6 Walls](docs/setup-component.md#step-6-mark-which-walls-can-be-run-on), [7 Settings](docs/setup-component.md#step-7-tune-the-settings), [8 Animation](docs/setup-component.md#step-8-add-animation), [9 Check it works](docs/setup-component.md#step-9-check-it-works), [Events](docs/setup-component.md#listen-to-events), [Troubleshooting](docs/setup-component.md#troubleshooting)
 
-**GAS Setup steps:** [1 Requirements](docs/setup-gas.md#step-1-requirements), [2 Copy files](docs/setup-gas.md#step-2-copy-the-source-files), [3 Build.cs](docs/setup-gas.md#step-3-update-buildcs), [4 .uproject](docs/setup-gas.md#step-4-update-your-uproject), [5 API macro and log](docs/setup-gas.md#step-5-rename-the-api-macro-and-add-the-log-category), [6 Build](docs/setup-gas.md#step-6-build), [7 Character](docs/setup-gas.md#step-7-set-up-your-character), [8 Walls](docs/setup-gas.md#step-8-mark-which-walls-can-be-run-on), [9 Settings](docs/setup-gas.md#step-9-tune-the-settings), [10 Animation](docs/setup-gas.md#step-10-add-animation), [11 Check it works](docs/setup-gas.md#step-11-check-it-works), [Gameplay tags](docs/setup-gas.md#gameplay-tags), [Block with tags](docs/setup-gas.md#block-wall-running-with-tags), [Troubleshooting](docs/setup-gas.md#troubleshooting)
+**GAS Setup steps:** [1 Requirements](docs/setup-gas.md#step-1-requirements), [2 Install the plugin](docs/setup-gas.md#step-2-install-the-plugin), [3 Build.cs](docs/setup-gas.md#step-3-update-buildcs), [4 Build](docs/setup-gas.md#step-4-build), [5 Character](docs/setup-gas.md#step-5-set-up-your-character), [6 Walls](docs/setup-gas.md#step-6-mark-which-walls-can-be-run-on), [7 Settings](docs/setup-gas.md#step-7-tune-the-settings), [8 Animation](docs/setup-gas.md#step-8-add-animation), [9 Check it works](docs/setup-gas.md#step-9-check-it-works), [Gameplay tags](docs/setup-gas.md#gameplay-tags), [Block with tags](docs/setup-gas.md#block-wall-running-with-tags), [Troubleshooting](docs/setup-gas.md#troubleshooting)
 
 ## Animation Setup Guide
 

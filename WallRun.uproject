@@ -35,5 +35,9 @@
 			"Name": "GameplayAbilities",
 			"Enabled": true
 		},
+		{
+			"Name": "WallRunSystem",
+			"Enabled": true
+		}
 	]
 }

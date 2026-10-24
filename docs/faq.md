@@ -39,7 +39,7 @@ Pick the [Component setup](setup-component.md) unless your project already uses 
 
 ### Do I need GAS if I pick the component?
 
-Not in your game, but the code still needs it to compile. The shared utility library includes the Ability System headers, so the `GameplayAbilities` plugin and the `GameplayAbilities`, `GameplayTags` and `GameplayTasks` modules must be enabled. Your character does not need an Ability System Component. See the [Setup Guide](setup-component.md#step-3-update-buildcs).
+Not in your game. The plugin depends on `GameplayAbilities` and enables it for you when you enable Wall Run System. Your character does not need an Ability System Component. See the [Setup Guide](setup-component.md#step-2-install-the-plugin).
 
 ### Can I use both at once?
 
@@ -57,11 +57,11 @@ No. The system reads and exposes state, and your Animation Blueprint plays your 
 
 ### Can I use my own character?
 
-Yes. Both setups have a "your own character" path: [component](setup-component.md#path-b-use-your-own-character) and [GAS](setup-gas.md#path-b-use-your-own-character). The component path works with any `ACharacter`. The GAS path needs an `APlayerCharacter` for the automatic wall jump input binding, or you call `StartWallJump()` yourself.
+Yes. Both setups have a "your own character" path: [component](setup-component.md#path-b-use-your-own-character) and [GAS](setup-gas.md#path-b-use-your-own-character). The component path works with any `ACharacter`. The GAS path needs a jump action for the automatic wall jump binding, set through `JumpInputAction` on the ability or `IWallRunInputProvider` on your character, or you call `StartWallJump()` yourself.
 
 ### Why can I not place the base character in my level?
 
-`AWallRunPlayerCharacter`, `AGASPlayerCharacter` and `APlayerCharacter` are abstract. Create a Blueprint subclass and use that.
+`AWallRunPlayerCharacter`, `AGASPlayerCharacter` and `APlayerCharacter` live in the plugin's `WallRunSample` module and are abstract. Create a Blueprint subclass and use that.
 
 ## Behaviour
 
@@ -114,4 +114,4 @@ Foot IK is tracing down to the ground far below. Fade its Alpha to 0 while `bIsW
 
 ### Does it work in a packaged build?
 
-A Windows Shipping package on Unreal Engine 5.8 builds and runs, with wall running working in the packaged game. The gameplay tags are native, so there is no tag config to ship. Make sure the `GameplayAbilities` plugin is enabled in your `.uproject`, as described in the [Setup Guide](setup-component.md#step-4-update-your-uproject).
+A Windows Shipping package on Unreal Engine 5.8 builds and runs, with wall running working in the packaged game. The gameplay tags are native, so there is no tag config to ship. Make sure the Wall Run System plugin is enabled, as described in the [Setup Guide](setup-component.md#step-2-install-the-plugin).

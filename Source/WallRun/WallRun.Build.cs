@@ -21,14 +21,15 @@ public class WallRun : ModuleRules
 			"Slate",
 			"GameplayAbilities",
 			"GameplayTags",
-			"GameplayTasks"
+			"GameplayTasks",
+			"WallRunSystem",
+			"WallRunSample"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		PublicIncludePaths.AddRange(new string[] {
-			"WallRun",
-			"WallRun/WallRunSystem"
+			"WallRun"
 		});
 	}
 }

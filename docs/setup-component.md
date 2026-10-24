@@ -9,110 +9,66 @@ Want the Ability System version instead? Use the [GAS Setup](setup-gas.md).
 ## On this page
 
 - [Step 1: Requirements](#step-1-requirements)
-- [Step 2: Copy the source files](#step-2-copy-the-source-files)
+- [Step 2: Install the plugin](#step-2-install-the-plugin)
 - [Step 3: Update Build.cs](#step-3-update-buildcs)
-- [Step 4: Update your .uproject](#step-4-update-your-uproject)
-- [Step 5: Rename the API macro and add the log category](#step-5-rename-the-api-macro-and-add-the-log-category)
-- [Step 6: Build](#step-6-build)
-- [Step 7: Set up your character](#step-7-set-up-your-character)
+- [Step 4: Build](#step-4-build)
+- [Step 5: Set up your character](#step-5-set-up-your-character)
   - [Path A: use the included character](#path-a-use-the-included-character)
   - [Path B: use your own character](#path-b-use-your-own-character)
-- [Step 8: Mark which walls can be run on](#step-8-mark-which-walls-can-be-run-on)
-- [Step 9: Tune the settings](#step-9-tune-the-settings)
-- [Step 10: Add animation](#step-10-add-animation)
-- [Step 11: Check it works](#step-11-check-it-works)
+- [Step 6: Mark which walls can be run on](#step-6-mark-which-walls-can-be-run-on)
+- [Step 7: Tune the settings](#step-7-tune-the-settings)
+- [Step 8: Add animation](#step-8-add-animation)
+- [Step 9: Check it works](#step-9-check-it-works)
 - [Listen to events](#listen-to-events)
 - [Troubleshooting](#troubleshooting)
 
 ## Step 1: Requirements
 
 - Unreal Engine 5.8 and a C++ project
+- The Wall Run System plugin, from Fab or this repository's `Plugins/WallRunSystem` folder
 - Enhanced Input set up in your project
 - A character that derives from `ACharacter`
 
-## Step 2: Copy the source files
+## Step 2: Install the plugin
 
-Copy these into your module's `Source/<YourModule>/` folder and keep the folder layout:
+1. Close the editor.
+2. Copy the `WallRunSystem` folder into your project's `Plugins/` folder, so you end up with `Plugins/WallRunSystem/WallRunSystem.uplugin`. Create `Plugins/` if it does not exist.
+3. Open the project, go to Edit, Plugins, search for Wall Run System and make sure it is enabled. Restart if asked.
 
-| Path | Why |
-| :--- | :--- |
-| `WallRunSystem/` (the whole folder) | The component, shared logic, settings, and the animation instance |
-| `WallRunGameplayTags.h` and `.cpp` | Native gameplay tags used by the shared logic |
-| `TickableAbility.h` | Needed because the `WallRunSystem` folder also holds the GAS ability, which compiles but stays unused here |
-| `PlayerCharacter.h` and `.cpp` | Needed by the same ability file, and the base class of the included character |
-| `WallRunPlayerCharacter.h` and `.cpp` | Path A only, the included character with the component |
-| `WallRunPlayerController.h` and `.cpp` | Path A only, optional, adds your input mapping context |
+Installing to the engine works too. Fab's Install to Engine puts it under `Engine/Plugins/Marketplace/`, and you enable it the same way.
 
-Do **not** copy `WallRun.cpp`. It contains `IMPLEMENT_PRIMARY_GAME_MODULE`, which your project already has. Step 5 covers the one thing you need from it.
-
-Keep the `WallRunSystem` folder whole. It contains the GAS ability, which stays unused in this setup but still has to compile.
+Enabling the plugin also enables `GameplayAbilities` and `EnhancedInput`, which it depends on. You do not need to edit your `.uproject` by hand.
 
 ## Step 3: Update Build.cs
 
-Add this to your module's `Build.cs`:
+Add `WallRunSystem` to your game module's `Build.cs`:
 
 ```csharp
 PublicDependencyModuleNames.AddRange(new string[] {
 	"EnhancedInput",
 	"GameplayAbilities",
 	"GameplayTags",
-	"GameplayTasks"
+	"WallRunSystem"
 });
-
-PublicIncludePaths.Add("YourModule");
 ```
-
-Replace `YourModule` with your module's folder name under `Source/`. The path is relative to your project's `Source` folder.
 
 Why each line is there:
 
-- `GameplayAbilities`, `GameplayTags`, `GameplayTasks`: the shared logic reads and sets gameplay tags, and the ability file is part of the folder. Your game does not need to use the Ability System, it just has to compile.
-- `EnhancedInput`: `PlayerCharacter` and the ability file bind Enhanced Input actions.
-- `PublicIncludePaths`: files inside `WallRunSystem/` include `PlayerCharacter.h`, `WallRunGameplayTags.h` and `TickableAbility.h` from the module root by plain name. The module root is not on the include path by default, so you add it once. Without it you get "cannot open include file".
+- `WallRunSystem`: lets your code include `WallRunComponent.h`, `UGA_WallRun.h`, `WallRunGameplayTags.h` and the rest.
+- `EnhancedInput`: your character binds its own input actions.
+- `GameplayAbilities`, `GameplayTags`: only needed if your code reads the wall run gameplay tags. Leave them out otherwise.
 
-## Step 4: Update your .uproject
-
-Enable the plugin the shared code compiles against:
-
-```json
-"Plugins": [
-	{
-		"Name": "GameplayAbilities",
-		"Enabled": true
-	}
-]
-```
-
-Do not leave a trailing comma after the last plugin entry.
-
-## Step 5: Rename the API macro and add the log category
-
-1. Replace `WALLRUN_API` with your module's macro, for example `MYGAME_API`, in every copied header. A project-wide find and replace does it.
-2. `PlayerCharacter.cpp` includes `WallRun.h` for the `LogWallRun` log category. Create a small `WallRun.h` with just this:
-
-```cpp
-#pragma once
-
-#include "CoreMinimal.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogWallRun, Log, All);
-```
-
-3. Add this line to any one `.cpp` file in your module, for example your module's main `.cpp`:
-
-```cpp
-DEFINE_LOG_CATEGORY(LogWallRun)
-```
-
-## Step 6: Build
+## Step 4: Build
 
 Close the editor, regenerate project files, and build the editor target. The gameplay tags are native, so there is no tag config to edit.
 
-## Step 7: Set up your character
+## Step 5: Set up your character
 
 Pick one path.
 
 ### Path A: use the included character
+
+The included characters ship in the plugin's `WallRunSample` module, with ready made Blueprints in the plugin content under `WallRunSystem Content/ThirdPerson/Blueprints`. Turn on Show Plugin Content in the Content Browser settings to see them. Subclass or duplicate those Blueprints, or follow the steps below to make your own.
 
 `AWallRunPlayerCharacter` already has a `UWallRunComponent`, routes jump to wall jump, and ignores movement input while wall running.
 
@@ -133,7 +89,7 @@ In Class Defaults, under Input:
 | Move Action | An Input Action, Axis2D, for example `IA_Move` |
 | Look Action | An Input Action, Axis2D, for example `IA_MouseLook` |
 
-The sample project has these under `Content/Input/Actions`, with the mapping context `Content/Input/IMC_Default`.
+The plugin has these under `WallRunSystem Content/Input/Actions`, with the mapping context `WallRunSystem Content/Input/IMC_Default`.
 
 **3. Create the controller**
 
@@ -196,7 +152,7 @@ void AMyCharacter::Move(const FInputActionValue& Value) {
 
 Look input should stay enabled.
 
-## Step 8: Mark which walls can be run on
+## Step 6: Mark which walls can be run on
 
 By default every actor that blocks the trace channel can be run on, except actors tagged `NoWallRun`.
 
@@ -205,7 +161,7 @@ By default every actor that blocks the trace channel can be run on, except actor
 
 Walls must block the channel set in `TraceChannel`, Visibility by default.
 
-## Step 9: Tune the settings
+## Step 7: Tune the settings
 
 Select the Wall Run Component, open the Wall Run category in Details, and expand Settings. Every property is listed in [Configuration](configuration.md). Good first values to adjust:
 
@@ -214,11 +170,11 @@ Select the Wall Run Component, open the Wall Run category in Details, and expand
 - `WallJumpAngle`, `WallJumpHorizontalVelocity`, `WallJumpVerticalVelocity`, the launch off the wall
 - `CornerAngleLimit`, the largest angle between two walls the run will follow
 
-## Step 10: Add animation
+## Step 8: Add animation
 
 The system does not play montages. Your Animation Blueprint reads the wall run state. Follow the [Animation Setup Guide](animation-setup-guide.md), then come back here.
 
-## Step 11: Check it works
+## Step 9: Check it works
 
 1. Place a tall, flat wall with collision in your level.
 2. Play, run at the wall, jump while moving toward it with forward input.
@@ -244,9 +200,9 @@ Handy for sound, camera effects and particles. Query state any time with `IsWall
 
 | Symptom | Likely cause |
 | :--- | :--- |
-| "cannot open include file" | The module root is missing from `PublicIncludePaths`, see [Step 3](#step-3-update-buildcs) |
-| Duplicate module or linker error | `WallRun.cpp` was copied, see [Step 2](#step-2-copy-the-source-files) |
-| Error about `WALLRUN_API` | The macro was not renamed, see [Step 5](#step-5-rename-the-api-macro-and-add-the-log-category) |
+| "cannot open include file" | `WallRunSystem` is missing from your `Build.cs`, see [Step 3](#step-3-update-buildcs) |
+| Linker errors for wall run classes | Same cause, see [Step 3](#step-3-update-buildcs) |
+| Plugin missing from the Plugins window | The folder is nested too deep, the `.uplugin` must sit at `Plugins/WallRunSystem/WallRunSystem.uplugin` |
 | Nothing happens near walls | The wall does not block the `TraceChannel`, has the `NoWallRun` tag, or `bRequiresTag` is on without the `WallRun` tag |
 | Latches but you cannot steer | Expected, movement input is ignored while wall running |
 | Jump does nothing while wall running | Jump is not routed to `StartWallJump`, see [Path B](#path-b-use-your-own-character) |

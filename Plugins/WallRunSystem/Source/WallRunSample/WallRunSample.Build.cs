@@ -1,0 +1,23 @@
+// Copyright: KonekoSupremacy
+
+using UnrealBuildTool;
+
+public class WallRunSample : ModuleRules
+{
+	public WallRunSample(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		PublicDependencyModuleNames.AddRange(new string[] {
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"EnhancedInput",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			"WallRunSystem"
+		});
+	}
+}
