@@ -1,4 +1,4 @@
-// Copyright: KonekoSupremacy
+// Copyright KonekoSupremacy 2026 All Rights Reserved.
 
 #include "WallRunSystem.h"
 
