@@ -47,10 +47,12 @@ Two more are editable, so you can tune the play rate mapping per character:
 
 In your locomotion or in-air state machine, add a Wall Running state:
 
-```
-Falling  --- bIsWallRunning == true --->  Wall Running
-Falling  <-- bIsWallRunning == false ---  Wall Running
-```
+Add two transitions between your Falling state and the new Wall Running state:
+
+| From | To | Condition |
+| :--- | :--- | :--- |
+| Falling | Wall Running | `bIsWallRunning` is true |
+| Wall Running | Falling | `bIsWallRunning` is false |
 
 Inside the Wall Running state:
 
