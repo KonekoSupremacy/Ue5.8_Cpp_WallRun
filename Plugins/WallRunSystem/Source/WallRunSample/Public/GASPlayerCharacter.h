@@ -24,6 +24,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	virtual bool CanMove() const override;
 	virtual void DoJump() override;
@@ -38,8 +39,6 @@ protected:
 	//================================================================================================================
 	// FUNCTIONS
 	//================================================================================================================
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-
 	void InitializeAbilitySystem();
 	void GrantDefaultAbilities();
 	void ActivateDefaultAbilities();

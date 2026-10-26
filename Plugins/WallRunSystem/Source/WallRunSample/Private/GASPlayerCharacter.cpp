@@ -42,6 +42,10 @@ void AGASPlayerCharacter::PossessedBy(AController* NewController) {
 UAbilitySystemComponent* AGASPlayerCharacter::GetAbilitySystemComponent() const {
 	return AbilitySystemComponent;
 }
+void AGASPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	ActivateDefaultAbilities();
+}
 
 bool AGASPlayerCharacter::CanMove() const {
 	if (AbilitySystemComponent && AbilitySystemComponent->HasMatchingGameplayTag(WallRunGameplayTags::Status_WallRunning)) {
@@ -80,11 +84,6 @@ void AGASPlayerCharacter::GrantDefaultAbilities() {
 	}
 
 	bAbilitiesGranted = true;
-}
-
-void AGASPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	ActivateDefaultAbilities();
 }
 
 void AGASPlayerCharacter::ActivateDefaultAbilities() {
